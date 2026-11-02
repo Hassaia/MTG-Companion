@@ -36,6 +36,7 @@ public class CardService {
 	private static final int MAX_REMEMBERED_QUERIES = 200;
 	private static final Duration SUGGESTIONS_MEMORY = Duration.ofMinutes(10);
 	private static final Duration MISSING_VARIANT_MEMORY = Duration.ofMinutes(10);
+	static final Duration RULINGS_VALIDITY = Duration.ofDays(7);
 
 	private static final Logger log = LoggerFactory.getLogger(CardService.class);
 
@@ -49,6 +50,10 @@ public class CardService {
 
 	/** @param artist artiste tel que renseigné par Scryfall, ou null */
 	public record CachedArt(String cardName, String artist) {
+	}
+
+	/** @param stale vrai si Scryfall était injoignable et que ces rulings viennent d'un cache périmé */
+	public record RulingsResult(List<Ruling> rulings, boolean stale) {
 	}
 
 	private record RememberedSuggestions(List<Suggestion> suggestions, Instant expiresAt) {
@@ -343,6 +348,43 @@ public class CardService {
 				.filter(found -> found.print().arts() != null && cache.artPath(CardCache.artFileName(printId, face)).isPresent())
 				.flatMap(found -> found.print().arts().stream().filter(art -> art.face() == face).findFirst()
 						.map(art -> new CachedArt(found.cardName(), art.artist())));
+	}
+
+	/**
+	 * Rulings d'une impression : le cache est utilisé tant qu'il a moins de {@link #RULINGS_VALIDITY} ;
+	 * sinon Scryfall est interrogé. Si Scryfall est injoignable, les rulings périmés sont servis (stale-if-error).
+	 *
+	 * @throws CardNotFoundException        si Scryfall ne connaît pas cette impression et que le cache n'a rien
+	 * @throws ScryfallUnavailableException si Scryfall est injoignable et que le cache n'a rien
+	 */
+	public RulingsResult rulings(String printId) {
+		Optional<CardCache.CachedRulings> cached = cache.findRulings(printId);
+		if (cached.isPresent() && cached.get().fetchedAt().plus(RULINGS_VALIDITY).isAfter(Instant.now())) {
+			return new RulingsResult(cached.get().rulings(), false);
+		}
+		Optional<List<JsonNode>> fetched;
+		try {
+			fetched = scryfall.rulings(printId);
+		}
+		catch (ScryfallUnavailableException e) {
+			if (cached.isPresent()) {
+				log.warn("Scryfall injoignable, rulings périmés servis pour {}", printId);
+				return new RulingsResult(cached.get().rulings(), true);
+			}
+			throw e;
+		}
+		if (fetched.isEmpty()) {
+			// Impression inconnue (404) : différent d'une carte valide sans ruling, qui répond 200 avec une liste vide
+			throw new CardNotFoundException(printId);
+		}
+		List<Ruling> rulings = ScryfallCardMapper.rulings(fetched.get());
+		try {
+			cache.saveRulings(printId, new CardCache.CachedRulings(Instant.now(), rulings));
+		}
+		catch (IOException e) {
+			log.warn("Impossible d'enregistrer les rulings de {} dans le cache", printId, e);
+		}
+		return new RulingsResult(rulings, false);
 	}
 
 	/** Vignette d'une impression proposée au téléphone, téléchargée et mise en cache au premier affichage. */

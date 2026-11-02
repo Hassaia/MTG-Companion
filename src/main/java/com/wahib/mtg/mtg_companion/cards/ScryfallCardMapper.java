@@ -101,6 +101,14 @@ public final class ScryfallCardMapper {
 				thumbnailUrl(print), images, arts(print), text(print, "set")));
 	}
 
+	/** Rulings dans l'ordre renvoyé par Scryfall ; ceux sans texte sont ignorés. */
+	public static List<Ruling> rulings(List<JsonNode> nodes) {
+		return nodes.stream()
+				.filter(node -> text(node, "comment") != null)
+				.map(node -> new Ruling(text(node, "source"), text(node, "published_at"), text(node, "comment")))
+				.toList();
+	}
+
 	/** Nom anglais et nom français d'une carte trouvée par une recherche en français, pour les suggestions. */
 	public static CardSuggestions.LocalizedName localizedName(JsonNode frenchCard) {
 		String englishName = text(frenchCard, "name");

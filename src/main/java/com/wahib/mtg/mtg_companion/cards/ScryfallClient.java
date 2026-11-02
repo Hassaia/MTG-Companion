@@ -95,6 +95,15 @@ public class ScryfallClient {
 		return getJson(generalLane, List.of("cards", printId), Map.of());
 	}
 
+	/**
+	 * Rulings d'une impression, dans l'ordre de Scryfall. Une carte sans ruling donne une liste vide ;
+	 * vide ({@link Optional#empty()}) si Scryfall ne connaît pas cette impression (404).
+	 */
+	public Optional<List<JsonNode>> rulings(String printId) {
+		return getJson(generalLane, List.of("cards", printId, "rulings"), Map.of())
+				.map(list -> elements(list.get("data")));
+	}
+
 	/** Ce que renvoie une recherche pour chaque carte trouvée. */
 	public enum SearchMode {
 		/** Une seule impression par carte. */

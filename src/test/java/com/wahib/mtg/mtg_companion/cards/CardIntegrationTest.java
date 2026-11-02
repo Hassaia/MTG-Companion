@@ -66,6 +66,9 @@ class CardIntegrationTest {
 				.stub("/cards/tst/1/fr", Map.of(), 200, "dfc-test-fr.json")
 				.stub("/cards/named", Map.of("exact", "Cloud, Ex-SOLDIER"), 200, "number-fic-168-en.json")
 				.stub("/cards/" + BOLT_ENGLISH_DEFAULT_PRINT, Map.of(), 200, "named-lightning-bolt.json")
+				.stub("/cards/" + BOLT_FR_PRINT + "/rulings", Map.of(), 200, "rulings-multiple.json")
+				.stub("/cards/" + CLOUD_EN_PRINT + "/rulings", Map.of(), 200, "rulings-none.json")
+				.stubStatus("/cards/" + CLOUD_FR_PRINT + "/rulings", 503)
 				.stubStatus("/cards/search", Map.of("q", "foudr lang:fr"), 503)
 				.stubStatus("/cards/named", Map.of("exact", "Broken Card"), 503);
 
@@ -110,6 +113,48 @@ class CardIntegrationTest {
 		JsonNode first = response.get("suggestions").get(0);
 		assertThat(first.get("name").asString()).isEqualTo("Judgment Bolt");
 		assertThat(first.get("label").asString()).isEqualTo("Foudre du jugement");
+	}
+
+	@Test
+	void rulingsAreReturnedToThePhoneOnlyWithoutTouchingTheTable() throws Exception {
+		HttpResponse<String> response = get("/api/cards/rulings?printId=" + BOLT_FR_PRINT);
+
+		assertThat(response.statusCode()).isEqualTo(200);
+		JsonNode body = json(response);
+		assertThat(body.get("rulings")).hasSize(3);
+		assertThat(body.get("rulings").get(0).get("source").asString()).isEqualTo("wotc");
+		assertThat(body.get("stale").asBoolean()).isFalse();
+		// Aucune diffusion à la table ni aux autres joueurs, aucune carte affichée
+		assertThat(table.messages.poll(500, TimeUnit.MILLISECONDS)).isNull();
+	}
+
+	@Test
+	void cardWithoutRulingAnswersAnEmptyList() throws Exception {
+		HttpResponse<String> response = get("/api/cards/rulings?printId=" + CLOUD_EN_PRINT);
+
+		assertThat(response.statusCode()).isEqualTo(200);
+		assertThat(json(response).get("rulings")).isEmpty();
+	}
+
+	@Test
+	void unknownPrintAnswers404AndScryfallErrorAnswers503() throws Exception {
+		assertThat(get("/api/cards/rulings?printId=" + BOLT_ENGLISH_ONLY_PRINT).statusCode()).isEqualTo(404);
+		assertThat(get("/api/cards/rulings?printId=" + CLOUD_FR_PRINT).statusCode()).isEqualTo(503);
+		assertThat(get("/api/cards/rulings?printId=pas-un-uuid").statusCode()).isEqualTo(400);
+	}
+
+	@Test
+	void repeatedRulingsRequestIsAnsweredFromCache() throws Exception {
+		get("/api/cards/rulings?printId=" + BOLT_FR_PRINT);
+		long before = scryfall.requests().stream()
+				.filter(request -> request.path().equals("/cards/" + BOLT_FR_PRINT + "/rulings")).count();
+
+		get("/api/cards/rulings?printId=" + BOLT_FR_PRINT);
+
+		long after = scryfall.requests().stream()
+				.filter(request -> request.path().equals("/cards/" + BOLT_FR_PRINT + "/rulings")).count();
+		assertThat(before).isEqualTo(1);
+		assertThat(after).isEqualTo(before);
 	}
 
 	@Test

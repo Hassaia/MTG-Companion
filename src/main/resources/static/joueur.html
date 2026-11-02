@@ -42,8 +42,14 @@
 			<ul id="commander-rows" class="commander-rows"></ul>
 		</section>
 
-		<button type="button" id="open-card-search" class="open-card-search">Montrer une carte sur la table</button>
-		<button type="button" id="open-zone-background" class="open-card-search">Illustration de ma zone</button>
+		<div class="quick-actions">
+			<button type="button" id="open-card-search" class="open-card-search" aria-label="Montrer une carte sur la table">
+				<span class="quick-icon" aria-hidden="true">🃏</span>Carte</button>
+			<button type="button" id="open-zone-background" class="open-card-search" aria-label="Illustration de ma zone">
+				<span class="quick-icon" aria-hidden="true">🖼️</span>Ma zone</button>
+			<button type="button" id="open-rulings" class="open-card-search" aria-label="Consulter les rulings d'une carte">
+				<span class="quick-icon" aria-hidden="true">📖</span>Rulings</button>
+		</div>
 
 		<div id="life-buttons" class="life-buttons">
 			<button type="button" class="life-button minus" data-delta="-5" aria-label="Retirer 5 PV">−5</button>
@@ -127,6 +133,20 @@
 				<button type="button" id="zone-clear" class="zone-button danger">Retirer l'illustration</button>
 			</div>
 		</section>
+	</section>
+
+	<section id="rulings-view" class="card-search rulings-view" role="dialog" aria-modal="true" aria-labelledby="rulings-title" hidden>
+		<header class="card-search-header">
+			<h2 id="rulings-title">Rulings</h2>
+			<button type="button" id="close-rulings" class="change-player">Retour</button>
+		</header>
+		<div class="rulings-card">
+			<img id="rulings-thumbnail" class="rulings-thumbnail" alt="" hidden>
+			<strong id="rulings-card-name" class="rulings-card-name"></strong>
+		</div>
+		<button type="button" id="rulings-new-search" class="zone-button">Autre carte</button>
+		<p id="rulings-status" class="card-search-status" role="status"></p>
+		<ul id="rulings-list" class="rulings-list"></ul>
 	</section>
 
 	<p id="toast" class="toast" role="alert" hidden></p>
