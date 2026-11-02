@@ -58,7 +58,7 @@
 			<button type="button" id="close-card-search" class="change-player">Retour</button>
 		</header>
 		<form class="card-search-form" role="search">
-			<input type="search" id="card-search-input" class="card-search-input" placeholder="Foudre, Lightning Bolt…"
+			<input type="search" id="card-search-input" class="card-search-input" placeholder="Foudre, Lightning Bolt, FIC 168…"
 				autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="search"
 				aria-label="Nom de la carte">
 		</form>
@@ -68,6 +68,10 @@
 			<ul id="card-history-list" class="card-suggestions"></ul>
 		</section>
 		<ul id="card-suggestions" class="card-suggestions"></ul>
+		<section id="card-illustrations" class="card-illustrations" hidden>
+			<h3 id="card-illustrations-title" class="card-history-title"></h3>
+			<ul id="card-illustration-grid" class="illustration-grid"></ul>
+		</section>
 	</section>
 
 	<p id="toast" class="toast" role="alert" hidden></p>

@@ -24,10 +24,17 @@ public final class CardSuggestions {
 	private static final int NO_MATCH = 3;
 
 	/**
-	 * @param name  nom anglais officiel : c'est lui qui est renvoyé au serveur pour afficher la carte
-	 * @param label nom à afficher, en français si possible
+	 * @param name       nom anglais officiel : c'est lui qui est renvoyé au serveur pour afficher la carte
+	 * @param label      nom à afficher, en français si possible
+	 * @param printId    impression précise (recherche par édition et numéro), sinon null : le joueur
+	 *                   choisira l'illustration
+	 * @param printLabel édition et numéro de cette impression, par exemple « Final Fantasy Commander · n° 168 »
 	 */
-	public record Suggestion(String name, String label) {
+	public record Suggestion(String name, String label, String printId, String printLabel) {
+
+		public Suggestion(String name, String label) {
+			this(name, label, null, null);
+		}
 	}
 
 	/** @param localName nom français, ou null s'il n'est pas connu */

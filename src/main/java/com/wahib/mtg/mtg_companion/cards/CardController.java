@@ -31,11 +31,26 @@ public class CardController {
 	public record SuggestionsResponse(List<CardSuggestions.Suggestion> suggestions, String warning) {
 	}
 
-	public record ShowCardRequest(String name) {
+	/** @param printId impression choisie, ou absent pour le choix automatique */
+	public record ShowCardRequest(String name, String printId) {
+	}
+
+	public record IllustrationsResponse(String name, List<IllustrationView> illustrations) {
+	}
+
+	/**
+	 * @param setName         édition, absente pour la liste de secours hors connexion
+	 * @param collectorNumber numéro de collection dans l'édition
+	 * @param thumbnail       vignette servie par ce serveur
+	 */
+	public record IllustrationView(String printId, String lang, String setName, String collectorNumber,
+			String thumbnail) {
 	}
 
 	public record ErrorResponse(String message) {
 	}
+
+	private static final String THUMBNAIL_URL_PREFIX = "/api/cards/thumbnails/";
 
 	private final CardService cardService;
 	private final CardDisplayService displayService;
@@ -53,13 +68,48 @@ public class CardController {
 		return new SuggestionsResponse(result.suggestions(), result.warning());
 	}
 
-	@PostMapping("/show")
-	public ResponseEntity<Void> show(@RequestBody ShowCardRequest request) {
-		if (request.name() == null || request.name().isBlank()) {
+	@GetMapping("/illustrations")
+	public ResponseEntity<IllustrationsResponse> illustrations(@RequestParam(name = "name", defaultValue = "") String name) {
+		if (name.isBlank()) {
 			return ResponseEntity.badRequest().build();
 		}
-		displayService.show(cardService.resolve(request.name().strip()));
+		CardIllustrations illustrations = cardService.illustrations(name.strip());
+		List<IllustrationView> views = illustrations.illustrations().stream()
+				.map(illustration -> {
+					// Vignette disponible si Scryfall en fournit une, ou si elle est déjà en cache
+					boolean hasThumbnail = illustration.thumbnailUrl() != null
+							|| cache.thumbnailPath(illustration.printId()).isPresent();
+					return new IllustrationView(illustration.printId(), illustration.lang(), illustration.setName(),
+							illustration.collectorNumber(),
+							hasThumbnail ? THUMBNAIL_URL_PREFIX + illustration.printId() + ".jpg" : null);
+				})
+				.toList();
+		return ResponseEntity.ok(new IllustrationsResponse(illustrations.name(), views));
+	}
+
+	@PostMapping("/show")
+	public ResponseEntity<Void> show(@RequestBody ShowCardRequest request) {
+		boolean invalidPrintId = request.printId() != null && !CardCache.isValidPrintId(request.printId());
+		if (request.name() == null || request.name().isBlank() || invalidPrintId) {
+			return ResponseEntity.badRequest().build();
+		}
+		displayService.show(cardService.resolve(request.name().strip(), request.printId()));
 		return ResponseEntity.noContent().build();
+	}
+
+	/** Vignettes pour le choix de l'illustration, téléchargées chez Scryfall au premier affichage. */
+	@GetMapping("/thumbnails/{fileName}")
+	public ResponseEntity<Resource> thumbnail(@PathVariable String fileName) {
+		if (!fileName.endsWith(".jpg")) {
+			return ResponseEntity.notFound().build();
+		}
+		String printId = fileName.substring(0, fileName.length() - ".jpg".length());
+		if (!CardCache.isValidPrintId(printId)) {
+			return ResponseEntity.notFound().build();
+		}
+		return cardService.thumbnail(printId)
+				.map(CardController::imageResponse)
+				.orElseGet(() -> ResponseEntity.notFound().build());
 	}
 
 	@PostMapping("/hide")
@@ -87,7 +137,7 @@ public class CardController {
 	}
 
 	private static ResponseEntity<Resource> imageResponse(Path file) {
-		// Une image est identifiée par l'id Scryfall de l'impression : son contenu ne change pas
+		// Une image est identifiée par l'identifiant Scryfall de l'impression : son contenu ne change pas
 		return ResponseEntity.ok()
 				.contentType(MediaType.IMAGE_JPEG)
 				.cacheControl(CacheControl.maxAge(Duration.ofDays(30)))

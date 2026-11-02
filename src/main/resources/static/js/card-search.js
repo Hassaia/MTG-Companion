@@ -1,12 +1,16 @@
 // Recherche d'une carte Magic depuis le téléphone et envoi à la table.
 // Les requêtes passent par notre serveur, qui seul interroge Scryfall.
-// Champ vide : la liste des favoris et des cartes récentes de ce téléphone est proposée à la place.
+//
+// Trois vues sous le champ de recherche :
+//  - champ vide : favoris et cartes récentes de ce téléphone, chacun avec son illustration mémorisée ;
+//  - en cours de frappe : suggestions ;
+//  - suggestion choisie, si la carte a plusieurs illustrations : grille pour choisir laquelle afficher.
 
-import { loadHistory, orderForDisplay, recordShown, saveHistory, toggleFavorite } from './card-history.js';
+import { entryKey, loadHistory, orderForDisplay, recordShown, saveHistory, toggleFavorite } from './card-history.js';
 
 const DEBOUNCE_MS = 350;
 const MIN_QUERY_LENGTH = 2;
-const HINT = 'Tapez le nom d\'une carte, en français ou en anglais.';
+const HINT = 'Tapez le nom d\'une carte (français ou anglais), ou son édition et son numéro : FIC 168.';
 const NO_CONNECTION = 'Pas de connexion au serveur, réessayez dans un instant.';
 
 const panel = document.getElementById('card-search');
@@ -15,19 +19,24 @@ const statusElement = document.getElementById('card-search-status');
 const suggestionList = document.getElementById('card-suggestions');
 const historySection = document.getElementById('card-history');
 const historyList = document.getElementById('card-history-list');
+const illustrationSection = document.getElementById('card-illustrations');
+const illustrationGrid = document.getElementById('card-illustration-grid');
 
 let history = loadHistory();
 let debounceTimer = null;
 let pendingSuggestions = null;
-let sending = false;
+let busy = false;
+let onCardSent = () => {};
 
 /** @param {{ onCardSent: (label: string) => void }} callbacks */
-export function initCardSearch({ onCardSent }) {
+export function initCardSearch(callbacks) {
+	onCardSent = callbacks.onCardSent;
 	document.getElementById('open-card-search').addEventListener('click', open);
 	document.getElementById('close-card-search').addEventListener('click', close);
 
 	input.addEventListener('input', () => {
 		clearTimeout(debounceTimer);
+		illustrationSection.hidden = true;
 		if (input.value.trim().length < MIN_QUERY_LENGTH) {
 			// Champ vidé : retour immédiat à l'historique, sans attendre
 			pendingSuggestions?.abort();
@@ -40,11 +49,12 @@ export function initCardSearch({ onCardSent }) {
 	panel.querySelector('form').addEventListener('submit', (event) => {
 		event.preventDefault();
 		clearTimeout(debounceTimer);
+		illustrationSection.hidden = true;
 		loadSuggestions();
 	});
 
-	// Un même gestionnaire pour les suggestions et l'historique
-	panel.addEventListener('click', async (event) => {
+	// Un seul gestionnaire pour les trois vues
+	panel.addEventListener('click', (event) => {
 		const favoriteButton = event.target.closest('button[data-favorite]');
 		if (favoriteButton) {
 			history = toggleFavorite(history, favoriteButton.dataset.favorite);
@@ -53,11 +63,21 @@ export function initCardSearch({ onCardSent }) {
 			return;
 		}
 		const cardButton = event.target.closest('button[data-name]');
-		if (cardButton && await sendCard(cardButton.dataset.name, cardButton.dataset.label)) {
-			history = recordShown(history, { name: cardButton.dataset.name, label: cardButton.dataset.label });
-			saveHistory(history);
-			close();
-			onCardSent(cardButton.dataset.label);
+		if (!cardButton) {
+			return;
+		}
+		const card = {
+			name: cardButton.dataset.name,
+			label: cardButton.dataset.label,
+			printId: cardButton.dataset.printId ?? null,
+			printLabel: cardButton.dataset.printLabel ?? null,
+		};
+		// Une suggestion par nom laisse choisir l'illustration ; une recherche par édition et numéro
+		// (« FIC 168 »), l'historique et la grille désignent déjà une impression précise
+		if (cardButton.dataset.source === 'suggestion' && !card.printId) {
+			chooseIllustration(card);
+		} else {
+			sendAndRemember(card);
 		}
 	});
 	document.addEventListener('keydown', (event) => {
@@ -94,8 +114,11 @@ function close() {
 	pendingSuggestions?.abort();
 }
 
+// --- Favoris et cartes récentes
+
 function showHistory() {
 	suggestionList.replaceChildren();
+	illustrationSection.hidden = true;
 	showStatus(HINT);
 	renderHistory();
 }
@@ -110,16 +133,18 @@ function renderHistory() {
 		const favoriteButton = document.createElement('button');
 		favoriteButton.type = 'button';
 		favoriteButton.className = 'favorite-toggle';
-		favoriteButton.dataset.favorite = entry.name;
+		favoriteButton.dataset.favorite = entryKey(entry);
 		favoriteButton.setAttribute('aria-pressed', String(entry.favorite));
 		favoriteButton.setAttribute('aria-label',
 			entry.favorite ? `Retirer « ${entry.label} » des favoris` : `Ajouter « ${entry.label} » aux favoris`);
 		favoriteButton.textContent = entry.favorite ? '★' : '☆';
 
-		item.append(cardButton(entry), favoriteButton);
+		item.append(cardButton(entry, 'history'), favoriteButton);
 		return item;
 	}));
 }
+
+// --- Suggestions
 
 async function loadSuggestions() {
 	const query = input.value.trim();
@@ -149,7 +174,7 @@ async function loadSuggestions() {
 function renderSuggestions({ suggestions, warning }) {
 	suggestionList.replaceChildren(...suggestions.map((suggestion) => {
 		const item = document.createElement('li');
-		item.append(cardButton(suggestion));
+		item.append(cardButton(suggestion, 'suggestion'));
 		return item;
 	}));
 
@@ -162,39 +187,118 @@ function renderSuggestions({ suggestions, warning }) {
 	}
 }
 
-/** Bouton d'une carte : nom français en gros, nom anglais en petit s'il est différent. */
-function cardButton({ name, label }) {
-	const button = document.createElement('button');
-	button.type = 'button';
-	button.className = 'card-suggestion';
-	button.dataset.name = name;
-	button.dataset.label = label;
-	const labelElement = document.createElement('span');
-	labelElement.className = 'suggestion-label';
-	labelElement.textContent = label;
-	button.append(labelElement);
-	if (label !== name) {
-		const englishName = document.createElement('span');
-		englishName.className = 'suggestion-english';
-		englishName.textContent = name;
-		button.append(englishName);
+// --- Choix de l'illustration
+
+async function chooseIllustration(card) {
+	if (busy) {
+		return;
 	}
-	return button;
+	busy = true;
+	panel.classList.add('sending');
+	// La première fois, le serveur doit interroger Scryfall : cela peut prendre une ou deux secondes
+	showStatus(`Recherche des illustrations de « ${card.label} »…`);
+	let illustrations;
+	try {
+		const response = await fetch(`/api/cards/illustrations?name=${encodeURIComponent(card.name)}`);
+		if (!response.ok) {
+			const body = await response.json().catch(() => null);
+			showStatus(body?.message ?? `Erreur du serveur (HTTP ${response.status}).`, 'error');
+			return;
+		}
+		illustrations = (await response.json()).illustrations;
+	} catch {
+		showStatus(NO_CONNECTION, 'error');
+		return;
+	} finally {
+		busy = false;
+		panel.classList.remove('sending');
+	}
+
+	if (illustrations.length <= 1) {
+		// Une seule illustration (ou aucune connue) : pas de choix à faire
+		const only = illustrations[0];
+		sendAndRemember({ ...card, printId: only?.printId ?? null, printLabel: only ? printLabel(only) : null });
+		return;
+	}
+	renderIllustrations(card, illustrations);
 }
 
-async function sendCard(name, label) {
-	if (sending) {
+function renderIllustrations(card, illustrations) {
+	suggestionList.replaceChildren();
+	historySection.hidden = true;
+	showStatus(`${illustrations.length} illustrations : touchez celle à afficher.`);
+	document.getElementById('card-illustrations-title').textContent = `Choisir l'illustration : ${card.label}`;
+
+	illustrationGrid.replaceChildren(...illustrations.map((illustration) => {
+		const button = document.createElement('button');
+		button.type = 'button';
+		button.className = 'illustration-choice';
+		button.dataset.source = 'illustration';
+		button.dataset.name = card.name;
+		button.dataset.label = card.label;
+		button.dataset.printId = illustration.printId;
+		const label = printLabel(illustration);
+		if (label) {
+			button.dataset.printLabel = label;
+		}
+
+		if (illustration.thumbnail) {
+			const image = document.createElement('img');
+			// Les vignettes sont téléchargées par le serveur au fil du défilement, pas toutes d'un coup
+			image.loading = 'lazy';
+			image.decoding = 'async';
+			image.src = illustration.thumbnail;
+			image.alt = `${card.label}, ${label ?? 'illustration'}`;
+			button.append(image);
+		}
+		const caption = document.createElement('span');
+		caption.className = 'illustration-caption';
+		caption.textContent = illustration.setName ?? 'Illustration';
+		const details = document.createElement('span');
+		details.className = 'illustration-details';
+		details.textContent = [illustration.collectorNumber && `n° ${illustration.collectorNumber}`,
+			illustration.lang?.toUpperCase()].filter(Boolean).join(' · ');
+		button.append(caption, details);
+
+		const item = document.createElement('li');
+		item.append(button);
+		return item;
+	}));
+	illustrationSection.hidden = false;
+	// Le clavier masque souvent la grille : on le referme
+	input.blur();
+}
+
+function printLabel({ setName, collectorNumber }) {
+	if (!setName) {
+		return null;
+	}
+	return collectorNumber ? `${setName} · n° ${collectorNumber}` : setName;
+}
+
+// --- Envoi à la table
+
+async function sendAndRemember(card) {
+	if (await sendCard(card)) {
+		history = recordShown(history, card);
+		saveHistory(history);
+		close();
+		onCardSent(card.label);
+	}
+}
+
+async function sendCard({ name, label, printId }) {
+	if (busy) {
 		return false;
 	}
-	sending = true;
+	busy = true;
 	panel.classList.add('sending');
-	// La première fois, le serveur doit récupérer la carte et ses images : cela peut prendre une ou deux secondes
 	showStatus(`Envoi de « ${label} » à la table…`);
 	try {
 		const response = await fetch('/api/cards/show', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ name }),
+			body: JSON.stringify(printId ? { name, printId } : { name }),
 		});
 		if (response.ok) {
 			return true;
@@ -206,9 +310,41 @@ async function sendCard(name, label) {
 		showStatus(NO_CONNECTION, 'error');
 		return false;
 	} finally {
-		sending = false;
+		busy = false;
 		panel.classList.remove('sending');
 	}
+}
+
+/**
+ * Bouton d'une carte : nom français en gros ; en petit, le nom anglais s'il diffère et
+ * l'édition de l'illustration mémorisée.
+ */
+function cardButton({ name, label, printId, printLabel: edition }, source) {
+	const button = document.createElement('button');
+	button.type = 'button';
+	button.className = 'card-suggestion';
+	button.dataset.source = source;
+	button.dataset.name = name;
+	button.dataset.label = label;
+	if (printId) {
+		button.dataset.printId = printId;
+	}
+	if (edition) {
+		button.dataset.printLabel = edition;
+	}
+	const labelElement = document.createElement('span');
+	labelElement.className = 'suggestion-label';
+	labelElement.textContent = label;
+	button.append(labelElement);
+
+	const secondary = [label !== name ? name : null, edition].filter(Boolean).join(' · ');
+	if (secondary) {
+		const secondaryElement = document.createElement('span');
+		secondaryElement.className = 'suggestion-english';
+		secondaryElement.textContent = secondary;
+		button.append(secondaryElement);
+	}
+	return button;
 }
 
 function showStatus(text, kind = 'info') {

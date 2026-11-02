@@ -79,6 +79,57 @@ class CardCacheTest {
 				path -> assertThat(path).hasBinaryContent(new byte[] {1, 2, 3}));
 	}
 
+	@Test
+	void savedIllustrationsAreFoundByCardName() throws Exception {
+		CardIllustrations illustrations = new CardIllustrations("Lightning Bolt", List.of(
+				new CardIllustrations.Illustration("1f93e813-516d-43c6-a2f3-4196c18620a5", "fr", "Secret Lair", "806",
+						"2026-06-26", "https://cards.scryfall.io/small/x.jpg", BOLT.images())));
+
+		cache().saveIllustrations(illustrations);
+
+		assertThat(cache().findIllustrations("LIGHTNING BOLT")).contains(illustrations);
+		assertThat(cache().findIllustrations("Fire // Ice")).isEmpty();
+	}
+
+	@Test
+	void savedPrintIsFoundById() throws Exception {
+		CardIllustrations.Illustration print = new CardIllustrations.Illustration("bc7a51db-3a36-4387-bdd5-12c05f1cd856",
+				"fr", "Final Fantasy Commander", "168", "2025-06-13", null, BOLT.images());
+
+		cache().savePrint("Cloud, Ex-SOLDIER", print);
+
+		assertThat(cache().findPrint("cloud, ex-soldier", "bc7a51db-3a36-4387-bdd5-12c05f1cd856")).contains(print);
+		assertThat(cache().findPrint("Cloud, Ex-SOLDIER", "../cards")).isEmpty();
+	}
+
+	@Test
+	void printIsNeverReturnedForAnotherCard() throws Exception {
+		CardIllustrations.Illustration print = new CardIllustrations.Illustration("bc7a51db-3a36-4387-bdd5-12c05f1cd856",
+				"fr", "Final Fantasy Commander", "168", "2025-06-13", null, BOLT.images());
+		cache().savePrint("Cloud, Ex-SOLDIER", print);
+
+		assertThat(cache().findPrint("Lightning Bolt", "bc7a51db-3a36-4387-bdd5-12c05f1cd856")).isEmpty();
+	}
+
+	@Test
+	void savesAndFindsThumbnails() throws Exception {
+		String printId = "1f93e813-516d-43c6-a2f3-4196c18620a5";
+		assertThat(cache().thumbnailPath(printId)).isEmpty();
+
+		cache().saveThumbnail(printId, new byte[] {4, 5});
+
+		assertThat(cache().thumbnailPath(printId)).hasValueSatisfying(
+				path -> assertThat(path).hasBinaryContent(new byte[] {4, 5}));
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = {"../cards", "1F93E813-516D-43C6-A2F3-4196C18620A5", "abc", ""})
+	void rejectsInvalidPrintIds(String printId) {
+		assertThat(CardCache.isValidPrintId(printId)).isFalse();
+		assertThat(cache().thumbnailPath(printId)).isEmpty();
+		assertThatThrownBy(() -> cache().saveThumbnail(printId, new byte[0])).isInstanceOf(IllegalArgumentException.class);
+	}
+
 	@ParameterizedTest
 	@ValueSource(strings = {"../mtg-game-state.json", "..\\x.jpg", "abc.jpg", "1f93e813-516d-43c6-a2f3-4196c18620a5-0.png", ""})
 	void rejectsInvalidImageNames(String fileName) {

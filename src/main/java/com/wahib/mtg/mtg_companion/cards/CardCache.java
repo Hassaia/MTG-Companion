@@ -29,8 +29,11 @@ import tools.jackson.databind.json.JsonMapper;
  * réaffiche sans rappeler Scryfall, y compris sans connexion Internet. Il n'expire pas ; pour le
  * vider, il suffit de supprimer son dossier.
  * <pre>
- * card-cache/cards/&lt;empreinte du nom&gt;.json
- * card-cache/images/&lt;id scryfall&gt;-&lt;face&gt;.jpg
+ * card-cache/cards/&lt;empreinte du nom&gt;.json           carte avec son impression par défaut
+ * card-cache/illustrations/&lt;empreinte du nom&gt;.json   illustrations distinctes de la carte
+ * card-cache/prints/&lt;id impression&gt;.json             impression trouvée par édition et numéro
+ * card-cache/images/&lt;id impression&gt;-&lt;face&gt;.jpg      grandes images, pour la table
+ * card-cache/thumbnails/&lt;id impression&gt;.jpg         vignettes, pour le choix sur le téléphone
  * </pre>
  */
 @Component
@@ -38,17 +41,24 @@ public class CardCache {
 
 	private static final Logger log = LoggerFactory.getLogger(CardCache.class);
 	/** Seuls noms acceptés pour une image : empêche toute lecture hors du dossier du cache. */
-	private static final Pattern IMAGE_FILE_NAME =
-			Pattern.compile("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}-[0-9]\\.jpg");
+	private static final String UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
+	private static final Pattern IMAGE_FILE_NAME = Pattern.compile(UUID + "-[0-9]\\.jpg");
+	private static final Pattern PRINT_ID = Pattern.compile(UUID);
 
 	private final Path cardsDirectory;
+	private final Path illustrationsDirectory;
+	private final Path printsDirectory;
 	private final Path imagesDirectory;
+	private final Path thumbnailsDirectory;
 	private final JsonMapper jsonMapper;
 
 	public CardCache(@Value("${mtg.card-cache-dir}") Path cacheDirectory, JsonMapper jsonMapper) {
 		Path root = cacheDirectory.toAbsolutePath();
 		this.cardsDirectory = root.resolve("cards");
+		this.illustrationsDirectory = root.resolve("illustrations");
+		this.printsDirectory = root.resolve("prints");
 		this.imagesDirectory = root.resolve("images");
+		this.thumbnailsDirectory = root.resolve("thumbnails");
 		this.jsonMapper = jsonMapper;
 	}
 
@@ -56,18 +66,67 @@ public class CardCache {
 		return fileName != null && IMAGE_FILE_NAME.matcher(fileName).matches();
 	}
 
+	/** Identifiant Scryfall d'une impression (UUID en minuscules). */
+	public static boolean isValidPrintId(String printId) {
+		return printId != null && PRINT_ID.matcher(printId).matches();
+	}
+
 	/** @param name nom anglais de la carte, sans tenir compte de la casse */
 	public Optional<Card> find(String name) {
-		Path file = cardFile(name);
-		if (!Files.exists(file)) {
-			return Optional.empty();
-		}
-		return read(file);
+		return read(nameFile(cardsDirectory, name), Card.class);
 	}
 
 	public void save(Card card) throws IOException {
-		byte[] json = jsonMapper.writerWithDefaultPrettyPrinter().writeValueAsBytes(card);
-		AtomicFiles.write(cardFile(card.name()), json);
+		write(nameFile(cardsDirectory, card.name()), card);
+	}
+
+	public Optional<CardIllustrations> findIllustrations(String name) {
+		return read(nameFile(illustrationsDirectory, name), CardIllustrations.class);
+	}
+
+	public void saveIllustrations(CardIllustrations illustrations) throws IOException {
+		write(nameFile(illustrationsDirectory, illustrations.name()), illustrations);
+	}
+
+	/** Impression rangée avec le nom de sa carte, pour ne jamais afficher l'image d'une autre carte. */
+	record CachedPrint(String cardName, CardIllustrations.Illustration print) {
+	}
+
+	/**
+	 * Impression précise (trouvée par édition et numéro, ou par identifiant).
+	 *
+	 * @return vide si l'impression n'est pas en cache ou n'appartient pas à cette carte
+	 */
+	public Optional<CardIllustrations.Illustration> findPrint(String cardName, String printId) {
+		if (!isValidPrintId(printId)) {
+			return Optional.empty();
+		}
+		return read(printsDirectory.resolve(printId + ".json"), CachedPrint.class)
+				.filter(cached -> cached.cardName().equalsIgnoreCase(cardName))
+				.map(CachedPrint::print);
+	}
+
+	public void savePrint(String cardName, CardIllustrations.Illustration print) throws IOException {
+		if (!isValidPrintId(print.printId())) {
+			throw new IllegalArgumentException("Identifiant d'impression invalide : " + print.printId());
+		}
+		write(printsDirectory.resolve(print.printId() + ".json"), new CachedPrint(cardName, print));
+	}
+
+	/** @return la vignette si elle est en cache ; vide si absente ou si l'identifiant n'est pas valide */
+	public Optional<Path> thumbnailPath(String printId) {
+		if (!isValidPrintId(printId)) {
+			return Optional.empty();
+		}
+		Path file = thumbnailsDirectory.resolve(printId + ".jpg");
+		return Files.isRegularFile(file) ? Optional.of(file) : Optional.empty();
+	}
+
+	public void saveThumbnail(String printId, byte[] content) throws IOException {
+		if (!isValidPrintId(printId)) {
+			throw new IllegalArgumentException("Identifiant d'impression invalide : " + printId);
+		}
+		AtomicFiles.write(thumbnailsDirectory.resolve(printId + ".jpg"), content);
 	}
 
 	/** Toutes les cartes du cache, pour proposer des suggestions quand Scryfall est injoignable. */
@@ -77,7 +136,7 @@ public class CardCache {
 			return cards;
 		}
 		try (DirectoryStream<Path> files = Files.newDirectoryStream(cardsDirectory, "*.json")) {
-			files.forEach(file -> read(file).ifPresent(cards::add));
+			files.forEach(file -> read(file, Card.class).ifPresent(cards::add));
 		}
 		catch (IOException e) {
 			log.warn("Lecture impossible du cache de cartes {}", cardsDirectory, e);
@@ -105,22 +164,29 @@ public class CardCache {
 		AtomicFiles.write(imagesDirectory.resolve(fileName), content);
 	}
 
-	private Optional<Card> read(Path file) {
+	private <T> Optional<T> read(Path file, Class<T> type) {
+		if (!Files.exists(file)) {
+			return Optional.empty();
+		}
 		try {
-			return Optional.of(jsonMapper.readValue(Files.readString(file), Card.class));
+			return Optional.of(jsonMapper.readValue(Files.readString(file), type));
 		}
 		catch (IOException | JacksonException e) {
-			log.warn("Carte en cache illisible, ignorée : {}", file, e);
+			log.warn("Fichier du cache illisible, ignoré : {}", file, e);
 			return Optional.empty();
 		}
 	}
 
+	private void write(Path file, Object content) throws IOException {
+		AtomicFiles.write(file, jsonMapper.writerWithDefaultPrettyPrinter().writeValueAsBytes(content));
+	}
+
 	/** Le nom d'une carte peut contenir n'importe quel caractère : le fichier est nommé d'après son empreinte. */
-	private Path cardFile(String name) {
+	private static Path nameFile(Path directory, String name) {
 		try {
 			byte[] digest = MessageDigest.getInstance("SHA-256")
 					.digest(name.toLowerCase(Locale.ROOT).getBytes(StandardCharsets.UTF_8));
-			return cardsDirectory.resolve(HexFormat.of().formatHex(digest) + ".json");
+			return directory.resolve(HexFormat.of().formatHex(digest) + ".json");
 		}
 		catch (NoSuchAlgorithmException e) {
 			throw new IllegalStateException("SHA-256 est toujours disponible dans le JDK", e);
