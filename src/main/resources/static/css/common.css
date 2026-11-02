@@ -1,0 +1,163 @@
+:root {
+	--bg: #111318;
+	--surface: #1b1e26;
+	--surface-raised: #252935;
+	--border: #343949;
+	--text: #f1f2f5;
+	--text-muted: #9ba1b0;
+	--accent: #e3a92b;
+	--accent-text: #1a1406;
+	--danger: #e5484d;
+	--success: #3fb950;
+	--radius: 14px;
+	/* Couleur propre à chaque joueur, identique sur la table et sur les téléphones */
+	--player-1: #4f9cf9;
+	--player-2: #e5484d;
+	--player-3: #3fb950;
+	--player-4: #e3a92b;
+	color-scheme: dark;
+}
+
+[data-player="1"] { --player-color: var(--player-1); }
+[data-player="2"] { --player-color: var(--player-2); }
+[data-player="3"] { --player-color: var(--player-3); }
+[data-player="4"] { --player-color: var(--player-4); }
+
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
+
+html {
+	-webkit-text-size-adjust: 100%;
+}
+
+/* Sans cela, un élément dont le CSS fixe « display » resterait visible malgré l'attribut hidden */
+[hidden] {
+	display: none !important;
+}
+
+body {
+	margin: 0;
+	background: var(--bg);
+	color: var(--text);
+	font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+	line-height: 1.4;
+}
+
+a {
+	color: var(--accent);
+}
+
+button,
+input {
+	font: inherit;
+	color: inherit;
+}
+
+/* Évite le zoom au double-tap sur les boutons tactiles */
+button,
+label,
+a {
+	touch-action: manipulation;
+}
+
+.topbar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 12px 16px;
+	border-bottom: 1px solid var(--border);
+}
+
+.topbar h1 {
+	margin: 0;
+	font-size: 1.25rem;
+}
+
+.connection-status {
+	font-size: 0.85rem;
+	color: var(--text-muted);
+	white-space: nowrap;
+}
+
+.connection-status::before {
+	content: "";
+	display: inline-block;
+	width: 0.6em;
+	height: 0.6em;
+	margin-right: 0.4em;
+	border-radius: 50%;
+	background: var(--text-muted);
+}
+
+.connection-status[data-state="connected"]::before {
+	background: var(--success);
+}
+
+.connection-status[data-state="disconnected"] {
+	color: var(--danger);
+}
+
+.connection-status[data-state="disconnected"]::before {
+	background: var(--danger);
+}
+
+/* Variation récente des PV, positionnée par le CSS de chaque page */
+.life-change {
+	transition: opacity 0.4s;
+}
+
+.life-change.visible {
+	opacity: 1;
+	transition: none;
+}
+
+.life-change[data-sign="negative"] {
+	color: var(--danger);
+}
+
+.life-change[data-sign="positive"] {
+	color: var(--success);
+}
+
+/* Connexion coupée : les valeurs affichées ne sont peut-être plus à jour */
+[data-connection="disconnected"] .life,
+[data-connection="disconnected"] .own-life-value,
+[data-connection="disconnected"] .opponent-life,
+[data-connection="disconnected"] .commander-damage,
+[data-connection="disconnected"] .commander-row .amount {
+	opacity: 0.35;
+	transition: opacity 0.4s;
+}
+
+.button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 48px;
+	padding: 0 20px;
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+	background: var(--surface-raised);
+	font-weight: 600;
+	cursor: pointer;
+}
+
+.button:active {
+	transform: scale(0.97);
+}
+
+.button.primary {
+	background: var(--accent);
+	border-color: var(--accent);
+	color: var(--accent-text);
+}
+
+.button.danger {
+	background: transparent;
+	border-color: var(--danger);
+	color: var(--danger);
+}

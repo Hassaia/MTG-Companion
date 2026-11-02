@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="fr">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Configuration · MTG Companion</title>
+	<link rel="stylesheet" href="/css/common.css">
+	<link rel="stylesheet" href="/css/config.css">
+	<script type="module" src="/js/config.js"></script>
+</head>
+<body>
+	<header class="topbar">
+		<h1>Configuration</h1>
+		<span id="connection-status" class="connection-status">Connexion…</span>
+	</header>
+
+	<main class="config">
+		<section class="card">
+			<h2>Sur les téléphones, ouvrir</h2>
+			<a id="phone-address" class="address-main" href="/joueur">…</a>
+			<p class="address-secondary">Grand écran : <a id="table-address" href="/table">…</a></p>
+			<p id="other-addresses" class="hint" hidden></p>
+			<p id="localhost-warning" class="warning" hidden>
+				Aucune adresse réseau détectée : vérifiez que ce PC est connecté au Wi-Fi.
+			</p>
+		</section>
+
+		<section class="card">
+			<h2>Partie en cours</h2>
+			<p id="current-summary" class="current-summary">…</p>
+			<ul id="current-players" class="current-players"></ul>
+			<div class="actions">
+				<button type="button" id="reset-button" class="button danger">Réinitialiser</button>
+			</div>
+		</section>
+
+		<form id="game-form" class="card">
+			<h2>Nouvelle partie</h2>
+
+			<fieldset>
+				<legend>Format</legend>
+				<div class="segmented">
+					<label><input type="radio" name="format" value="STANDARD"><span>Standard</span></label>
+					<label><input type="radio" name="format" value="COMMANDER" checked><span>Commander</span></label>
+				</div>
+			</fieldset>
+
+			<fieldset>
+				<label class="field-label" for="starting-life">PV de départ</label>
+				<input type="number" id="starting-life" name="startingLife" class="text-input starting-life"
+					min="1" max="999" step="1" required inputmode="numeric" value="40">
+			</fieldset>
+
+			<fieldset>
+				<legend>Nombre de joueurs</legend>
+				<div class="segmented">
+					<label><input type="radio" name="playerCount" value="2"><span>2</span></label>
+					<label><input type="radio" name="playerCount" value="3"><span>3</span></label>
+					<label><input type="radio" name="playerCount" value="4" checked><span>4</span></label>
+				</div>
+			</fieldset>
+
+			<fieldset>
+				<legend>Noms (facultatifs)</legend>
+				<div id="player-names" class="player-names">
+					<input type="text" class="text-input" maxlength="20" placeholder="Joueur 1" aria-label="Nom du joueur 1">
+					<input type="text" class="text-input" maxlength="20" placeholder="Joueur 2" aria-label="Nom du joueur 2">
+					<input type="text" class="text-input" maxlength="20" placeholder="Joueur 3" aria-label="Nom du joueur 3">
+					<input type="text" class="text-input" maxlength="20" placeholder="Joueur 4" aria-label="Nom du joueur 4">
+				</div>
+			</fieldset>
+
+			<div class="actions">
+				<button type="submit" class="button primary">Lancer la partie</button>
+			</div>
+			<p id="feedback" class="feedback" role="status"></p>
+		</form>
+	</main>
+</body>
+</html>

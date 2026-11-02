@@ -1,0 +1,176 @@
+.config {
+	display: grid;
+	gap: 16px;
+	max-width: 720px;
+	margin: 0 auto;
+	padding: 16px;
+}
+
+.card {
+	padding: 16px 20px;
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+	background: var(--surface);
+}
+
+.card h2 {
+	margin: 0 0 12px;
+	font-size: 1rem;
+	font-weight: 600;
+	color: var(--text-muted);
+}
+
+/* Adresse à recopier sur les téléphones : la plus visible de la page */
+.address-main {
+	display: block;
+	font-size: clamp(1.4rem, 6vw, 2.4rem);
+	font-weight: 700;
+	word-break: break-all;
+	text-decoration: none;
+}
+
+.address-secondary,
+.hint {
+	margin: 8px 0 0;
+	color: var(--text-muted);
+}
+
+.warning {
+	margin: 12px 0 0;
+	color: var(--danger);
+}
+
+.current-summary {
+	margin: 0 0 8px;
+}
+
+.current-players {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+	gap: 8px;
+	margin: 0 0 16px;
+	padding: 0;
+	list-style: none;
+}
+
+.current-players li {
+	display: flex;
+	justify-content: space-between;
+	gap: 8px;
+	padding: 8px 12px;
+	border-radius: 10px;
+	background: var(--surface-raised);
+}
+
+.current-players .life {
+	font-weight: 700;
+	font-variant-numeric: tabular-nums;
+}
+
+.current-players .eliminated {
+	opacity: 0.5;
+	text-decoration: line-through;
+}
+
+fieldset {
+	margin: 0 0 16px;
+	padding: 0;
+	border: 0;
+}
+
+legend,
+.field-label {
+	display: block;
+	margin-bottom: 8px;
+	font-weight: 600;
+}
+
+/* Boutons radio présentés comme un sélecteur segmenté */
+.segmented {
+	display: flex;
+	gap: 8px;
+}
+
+.segmented label {
+	position: relative;
+	flex: 1;
+}
+
+.segmented input {
+	position: absolute;
+	opacity: 0;
+	pointer-events: none;
+}
+
+.segmented span {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 48px;
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+	background: var(--surface-raised);
+	font-weight: 600;
+	cursor: pointer;
+}
+
+.segmented input:checked + span {
+	border-color: var(--accent);
+	background: var(--accent);
+	color: var(--accent-text);
+}
+
+.segmented input:focus-visible + span {
+	outline: 2px solid var(--text);
+	outline-offset: 2px;
+}
+
+.text-input {
+	width: 100%;
+	min-height: 48px;
+	padding: 0 14px;
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+	background: var(--surface-raised);
+}
+
+.text-input:focus {
+	outline: 2px solid var(--accent);
+	outline-offset: 1px;
+}
+
+.starting-life {
+	max-width: 140px;
+	font-size: 1.25rem;
+	font-weight: 700;
+	text-align: center;
+}
+
+.player-names {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+	gap: 8px;
+}
+
+.actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 12px;
+}
+
+.actions .button {
+	flex: 1 1 200px;
+}
+
+.feedback {
+	min-height: 1.4em;
+	margin: 12px 0 0;
+}
+
+.feedback[data-kind="success"] {
+	color: var(--success);
+}
+
+.feedback[data-kind="error"] {
+	color: var(--danger);
+}
