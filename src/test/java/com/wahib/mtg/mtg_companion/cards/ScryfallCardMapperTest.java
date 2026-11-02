@@ -102,6 +102,66 @@ class ScryfallCardMapperTest {
 	}
 
 	@Test
+	void illustrationsPreferFrenchPrintsAndListThemFirst() {
+		List<CardIllustrations.Illustration> illustrations = ScryfallCardMapper.illustrations(
+				ScryfallFixtures.json("named-lightning-bolt.json"),
+				ScryfallFixtures.data("arts-lightning-bolt.json"),
+				ScryfallFixtures.data("fr-prints-lightning-bolt.json"));
+
+		// 4 illustrations existent en français (de la plus récente à la plus ancienne), 2 seulement en anglais
+		assertThat(illustrations).extracting(CardIllustrations.Illustration::printId).containsExactly(
+				LIGHTNING_BOLT_FR_MSC,
+				"58a21915-1e4d-4da3-82f4-0e55178b7b82",
+				"a2f87032-f9b0-41e8-bfac-35e0c6ce0af1",
+				"1ac99521-7dba-4d53-b125-17f037180d09",
+				"bba5ea18-4e58-42a8-b613-2178706476a6",
+				"0ef3c273-ec92-41d0-9abe-0f99e33db4f5");
+		assertThat(illustrations).extracting(CardIllustrations.Illustration::lang)
+				.containsExactly("fr", "fr", "fr", "fr", "en", "en");
+	}
+
+	@Test
+	void illustrationCarriesItsEditionThumbnailAndLargeImage() {
+		List<CardIllustrations.Illustration> illustrations = ScryfallCardMapper.illustrations(
+				ScryfallFixtures.json("named-lightning-bolt.json"),
+				ScryfallFixtures.data("arts-lightning-bolt.json"),
+				ScryfallFixtures.data("fr-prints-lightning-bolt.json"));
+
+		CardIllustrations.Illustration first = illustrations.getFirst();
+		assertThat(first.collectorNumber()).isEqualTo("806");
+		assertThat(first.setName()).isNotBlank();
+		assertThat(first.images()).extracting(CardImage::fileName).containsExactly(LIGHTNING_BOLT_FR_MSC + "-0.jpg");
+		assertThat(illustrations.getLast().thumbnailUrl()).contains("/small/");
+	}
+
+	@Test
+	void doubleFacedIllustrationsHaveBothFacesAndAFrontThumbnail() {
+		List<CardIllustrations.Illustration> illustrations = ScryfallCardMapper.illustrations(
+				ScryfallFixtures.json("named-delver-of-secrets.json"),
+				ScryfallFixtures.data("arts-delver-of-secrets.json"),
+				ScryfallFixtures.data("fr-prints-delver-of-secrets.json"));
+
+		assertThat(illustrations).extracting(CardIllustrations.Illustration::printId).containsExactly(
+				"1bcae0cc-ff55-43e1-bbf7-063a24339712",
+				"3a486708-36b6-48b4-bf25-3b0340a1a04c",
+				"a808459c-f086-4cb6-a53e-4b9e196c1000");
+		assertThat(illustrations).allSatisfy(illustration -> {
+			assertThat(illustration.images()).hasSize(2);
+			assertThat(illustration.thumbnailUrl()).contains("/front/");
+		});
+	}
+
+	@Test
+	void withoutIllustrationListTheDefaultEnglishPrintIsTheOnlyChoice() {
+		JsonNode english = ScryfallFixtures.json("named-the-fourteenth-doctor.json");
+
+		List<CardIllustrations.Illustration> illustrations = ScryfallCardMapper.illustrations(english, List.of(), List.of());
+
+		assertThat(illustrations).extracting(CardIllustrations.Illustration::printId)
+				.containsExactly(english.get("id").asString());
+	}
+
+	@Test
 	void localizedNameOfASearchResult() {
 		List<JsonNode> results = ScryfallFixtures.data("search-fr-foud.json");
 

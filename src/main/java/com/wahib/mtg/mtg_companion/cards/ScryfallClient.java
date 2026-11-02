@@ -72,29 +72,49 @@ public class ScryfallClient {
 
 	/** Noms anglais complets commençant par (ou proches de) {@code query}. */
 	public List<String> autocomplete(String query) {
-		return getJson(generalLane, "/cards/autocomplete", Map.of("q", query))
+		return getJson(generalLane, List.of("cards", "autocomplete"), Map.of("q", query))
 				.map(catalog -> strings(catalog.get("data")))
 				.orElse(List.of());
 	}
 
 	/** Version anglaise par défaut de la carte portant exactement ce nom anglais. */
 	public Optional<JsonNode> findByExactName(String englishName) {
-		return getJson(cardSearchLane, "/cards/named", Map.of("exact", englishName));
+		return getJson(cardSearchLane, List.of("cards", "named"), Map.of("exact", englishName));
 	}
 
 	/**
-	 * Première page (175 cartes au plus) d'une recherche avec la syntaxe Scryfall.
-	 *
-	 * @param allPrints toutes les impressions de chaque carte, de la plus récente à la plus ancienne,
-	 *                  au lieu d'une seule impression par carte
+	 * Impression précise, par code d'édition et numéro de collection, dans la langue demandée
+	 * ({@code fr}, {@code en}…) ; vide si elle n'existe pas dans cette langue.
 	 */
-	public List<JsonNode> search(String query, boolean allPrints) {
+	public Optional<JsonNode> findByCollectorNumber(String setCode, String collectorNumber, String lang) {
+		return getJson(generalLane, List.of("cards", setCode, collectorNumber, lang), Map.of());
+	}
+
+	/** Impression précise, par son identifiant Scryfall. */
+	public Optional<JsonNode> findById(String printId) {
+		return getJson(generalLane, List.of("cards", printId), Map.of());
+	}
+
+	/** Ce que renvoie une recherche pour chaque carte trouvée. */
+	public enum SearchMode {
+		/** Une seule impression par carte. */
+		ONE_PER_CARD,
+		/** Toutes les impressions, de la plus récente à la plus ancienne. */
+		ALL_PRINTS,
+		/** Une impression par illustration distincte, de la plus récente à la plus ancienne. */
+		ONE_PER_ILLUSTRATION
+	}
+
+	/** Première page (175 cartes au plus) d'une recherche avec la syntaxe Scryfall. */
+	public List<JsonNode> search(String query, SearchMode mode) {
 		// order=released trie par défaut de la plus récente à la plus ancienne
-		Map<String, String> parameters = allPrints
-				? Map.of("q", query, "unique", "prints", "order", "released")
-				: Map.of("q", query);
+		Map<String, String> parameters = switch (mode) {
+			case ONE_PER_CARD -> Map.of("q", query);
+			case ALL_PRINTS -> Map.of("q", query, "unique", "prints", "order", "released");
+			case ONE_PER_ILLUSTRATION -> Map.of("q", query, "unique", "art", "order", "released");
+		};
 		// Scryfall répond 404 quand la recherche ne trouve rien
-		return getJson(cardSearchLane, "/cards/search", parameters)
+		return getJson(cardSearchLane, List.of("cards", "search"), parameters)
 				.map(list -> elements(list.get("data")))
 				.orElse(List.of());
 	}
@@ -110,12 +130,13 @@ public class ScryfallClient {
 		return response.body();
 	}
 
-	private Optional<JsonNode> getJson(RequestThrottle.Lane lane, String path, Map<String, String> parameters) {
+	/** @param pathSegments morceaux du chemin, encodés un à un (un numéro de collection peut contenir n'importe quoi) */
+	private Optional<JsonNode> getJson(RequestThrottle.Lane lane, List<String> pathSegments, Map<String, String> parameters) {
 		requireNotPaused();
 		waitForTurn(lane);
 		RawResponse response = execute(restClient.get()
 				.uri(builder -> {
-					builder.path(path);
+					builder.pathSegment(pathSegments.toArray(String[]::new));
 					// Valeurs passées en variables : elles sont encodées entièrement (espaces, guillemets, deux-points…)
 					parameters.keySet().forEach(name -> builder.queryParam(name, "{" + name + "}"));
 					return builder.build(parameters);

@@ -76,13 +76,18 @@ une veille, la page se reconnecte d'elle-même et récupère l'état à jour.
 ## 5. Montrer une carte sur la table
 
 Sur `/joueur`, « Montrer une carte sur la table » ouvre une recherche par nom, en français ou en
-anglais. La carte choisie s'affiche en plein écran sur `/table` (version française si elle
+anglais, ou par édition et numéro de collection tels qu'imprimés en bas de la carte
+(`FIC 168`, `fic #168`, `M10-146`) : cette impression précise est alors envoyée directement. La carte choisie s'affiche en plein écran sur `/table` (version française si elle
 existe). N'importe quel téléphone peut la fermer ; elle se ferme seule après 30 secondes
 (`mtg.card-display-duration` dans `application.properties`).
 
-Champ de recherche vide, le téléphone propose les cartes qu'il a déjà envoyées : les favoris
-(étoile ☆/★) en haut par ordre alphabétique, puis les 10 dernières cartes. Cette liste est
-propre à chaque téléphone (mémorisée dans son navigateur).
+Si la carte a plusieurs illustrations, le téléphone les affiche en vignettes (versions françaises
+en premier) et le joueur choisit celle à montrer.
+
+Champ de recherche vide, le téléphone propose les cartes qu'il a déjà envoyées, chacune avec
+l'illustration choisie : les favoris (étoile ☆/★) en haut par ordre alphabétique, puis les
+10 dernières cartes. Un favori réaffiche toujours la même illustration. Cette liste est propre
+à chaque téléphone (mémorisée dans son navigateur).
 
 Les données et images viennent de [Scryfall](https://scryfall.com). Seul le serveur les télécharge,
 jamais les navigateurs : **le PC doit avoir accès à Internet** pour une carte jamais affichée.

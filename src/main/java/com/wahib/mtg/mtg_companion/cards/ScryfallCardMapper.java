@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 
 import com.wahib.mtg.mtg_companion.cards.Card.CardFace;
@@ -56,6 +57,50 @@ public final class ScryfallCardMapper {
 		return new Card(text(englishCard, "name"), french.isEmpty() ? "en" : "fr", faces, images(imagePrint));
 	}
 
+	/**
+	 * Une entrée par illustration distincte. Pour chacune, l'impression française la plus récente
+	 * qui la porte (avec une vraie image) est préférée à l'anglaise. Les illustrations disponibles
+	 * en français passent en premier, puis les autres ; chaque groupe de la plus récente à la plus ancienne.
+	 *
+	 * @param englishCard  version anglaise par défaut, utilisée si Scryfall ne renvoie aucune illustration
+	 * @param artPrints    une impression par illustration (recherche « unique=art »)
+	 * @param frenchPrints impressions françaises, de la plus récente à la plus ancienne
+	 */
+	public static List<CardIllustrations.Illustration> illustrations(JsonNode englishCard, List<JsonNode> artPrints,
+			List<JsonNode> frenchPrints) {
+		List<JsonNode> sources = artPrints.isEmpty() ? List.of(englishCard) : artPrints;
+		List<CardIllustrations.Illustration> french = new ArrayList<>();
+		List<CardIllustrations.Illustration> english = new ArrayList<>();
+		for (JsonNode artPrint : sources) {
+			String illustrationId = illustrationId(artPrint);
+			JsonNode frenchPrint = illustrationId == null ? null : frenchPrints.stream()
+					.filter(print -> illustrationId.equals(illustrationId(print)) && hasRealImage(print))
+					.findFirst()
+					.orElse(null);
+			Optional<CardIllustrations.Illustration> illustration = illustration(frenchPrint != null ? frenchPrint : artPrint);
+			illustration.ifPresent((frenchPrint != null ? french : english)::add);
+		}
+		Comparator<CardIllustrations.Illustration> newestFirst = Comparator.comparing(
+				(CardIllustrations.Illustration illustration) -> Objects.requireNonNullElse(illustration.releasedAt(), ""))
+				.reversed();
+		french.sort(newestFirst);
+		english.sort(newestFirst);
+		List<CardIllustrations.Illustration> result = new ArrayList<>(french);
+		result.addAll(english);
+		return result;
+	}
+
+	/** L'illustration d'une impression précise ; vide si Scryfall n'a aucune image de cette impression. */
+	public static Optional<CardIllustrations.Illustration> illustration(JsonNode print) {
+		List<CardImage> images = images(print);
+		if (images.isEmpty()) {
+			return Optional.empty();
+		}
+		return Optional.of(new CardIllustrations.Illustration(text(print, "id"), text(print, "lang"),
+				text(print, "set_name"), text(print, "collector_number"), text(print, "released_at"),
+				thumbnailUrl(print), images));
+	}
+
 	/** Nom anglais et nom français d'une carte trouvée par une recherche en français, pour les suggestions. */
 	public static CardSuggestions.LocalizedName localizedName(JsonNode frenchCard) {
 		String englishName = text(frenchCard, "name");
@@ -91,7 +136,8 @@ public final class ScryfallCardMapper {
 		return englishValue == null ? "" : englishValue;
 	}
 
-	private static boolean hasRealImage(JsonNode print) {
+	/** Vraie photo de la carte, et pas une image provisoire ou absente. */
+	static boolean hasRealImage(JsonNode print) {
 		return REAL_IMAGE_STATUSES.contains(print.path("image_status").asString("")) && !images(print).isEmpty();
 	}
 
@@ -115,6 +161,29 @@ public final class ScryfallCardMapper {
 			}
 		}
 		return images;
+	}
+
+	/** Les cartes double face portent l'illustration sur chaque face : on prend celle du recto. */
+	private static String illustrationId(JsonNode print) {
+		String rootId = text(print, "illustration_id");
+		if (rootId != null) {
+			return rootId;
+		}
+		List<JsonNode> faces = faces(print);
+		return faces.isEmpty() ? null : text(faces.getFirst(), "illustration_id");
+	}
+
+	/** Petite image du recto (146 × 204), ou l'image moyenne si Scryfall n'a pas fourni la petite. */
+	private static String thumbnailUrl(JsonNode print) {
+		JsonNode imageUris = print.get("image_uris");
+		if (imageUris == null && !faces(print).isEmpty()) {
+			imageUris = faces(print).getFirst().get("image_uris");
+		}
+		if (imageUris == null) {
+			return null;
+		}
+		String small = text(imageUris, "small");
+		return small != null ? small : text(imageUris, "normal");
 	}
 
 	private static String imageUrl(JsonNode imageUris) {

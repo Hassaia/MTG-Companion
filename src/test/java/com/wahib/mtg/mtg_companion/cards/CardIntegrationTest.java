@@ -36,7 +36,13 @@ import tools.jackson.databind.JsonNode;
 class CardIntegrationTest {
 
 	private static final long TIMEOUT_SECONDS = 5;
-	private static final String BOLT_IMAGE = "1f93e813-516d-43c6-a2f3-4196c18620a5-0.jpg";
+	private static final String BOLT_FR_PRINT = "1f93e813-516d-43c6-a2f3-4196c18620a5";
+	private static final String BOLT_IMAGE = BOLT_FR_PRINT + "-0.jpg";
+	/** Illustration de Secret Lair, qui n'existe qu'en anglais. */
+	private static final String BOLT_ENGLISH_ONLY_PRINT = "bba5ea18-4e58-42a8-b613-2178706476a6";
+	/** Version anglaise dont l'illustration est proposée en français dans la grille : absente de la liste. */
+	private static final String BOLT_ENGLISH_DEFAULT_PRINT = "7673784e-db4b-43a1-8d55-1bb9fc1e284f";
+	private static final String CLOUD_FR_PRINT = "bc7a51db-3a36-4387-bdd5-12c05f1cd856";
 
 	@TempDir
 	static Path directory;
@@ -49,8 +55,12 @@ class CardIntegrationTest {
 		String boltOracleId = ScryfallFixtures.json("named-lightning-bolt.json").get("oracle_id").asString();
 		scryfall.stub("/cards/named", Map.of("exact", "Lightning Bolt"), 200, "named-lightning-bolt.json")
 				.stub("/cards/search", Map.of("q", "oracleid:" + boltOracleId + " lang:fr"), 200, "fr-prints-lightning-bolt.json")
+				.stub("/cards/search", Map.of("q", "oracleid:" + boltOracleId, "unique", "art"), 200, "arts-lightning-bolt.json")
 				.stub("/cards/search", Map.of("q", "foud lang:fr"), 200, "search-fr-foud.json")
 				.stubBody("/cards/autocomplete", Map.of("q", "foud"), "{\"object\":\"catalog\",\"data\":[]}")
+				.stub("/cards/fic/168/fr", Map.of(), 200, "number-fic-168-fr.json")
+				.stub("/cards/named", Map.of("exact", "Cloud, Ex-SOLDIER"), 200, "number-fic-168-en.json")
+				.stub("/cards/" + BOLT_ENGLISH_DEFAULT_PRINT, Map.of(), 200, "named-lightning-bolt.json")
 				.stubStatus("/cards/search", Map.of("q", "foudr lang:fr"), 503)
 				.stubStatus("/cards/named", Map.of("exact", "Broken Card"), 503);
 
@@ -200,6 +210,91 @@ class CardIntegrationTest {
 
 		assertThat(response.get("warning").asString()).contains("Seules les cartes déjà affichées");
 		assertThat(response.get("suggestions").get(0).get("label").asString()).isEqualTo("Foudre");
+	}
+
+	@Test
+	void illustrationsAreListedWithThumbnailsServedByThisServer() throws Exception {
+		JsonNode response = json(get("/api/cards/illustrations?name=" + "Lightning%20Bolt"));
+
+		JsonNode illustrations = response.get("illustrations");
+		assertThat(illustrations.size()).isEqualTo(6);
+		JsonNode first = illustrations.get(0);
+		assertThat(first.get("printId").asString()).isEqualTo(BOLT_FR_PRINT);
+		assertThat(first.get("lang").asString()).isEqualTo("fr");
+		assertThat(first.get("collectorNumber").asString()).isEqualTo("806");
+
+		HttpResponse<byte[]> thumbnail = getBytes(first.get("thumbnail").asString());
+		assertThat(thumbnail.statusCode()).isEqualTo(200);
+		assertThat(thumbnail.body()).isEqualTo(FakeScryfallServer.IMAGE_BYTES);
+	}
+
+	@Test
+	void chosenIllustrationIsShownWithTheFrenchNameKept() throws Exception {
+		get("/api/cards/illustrations?name=Lightning%20Bolt");
+
+		post("/api/cards/show", "{\"name\":\"Lightning Bolt\",\"printId\":\"" + BOLT_ENGLISH_ONLY_PRINT + "\"}");
+
+		JsonNode card = table.next().get("card");
+		assertThat(card.get("images").get(0).asString()).isEqualTo("/api/cards/images/" + BOLT_ENGLISH_ONLY_PRINT + "-0.jpg");
+		assertThat(card.get("faces").get(0).get("name").asString()).isEqualTo("Foudre");
+		assertThat(getBytes(card.get("images").get(0).asString()).statusCode()).isEqualTo(200);
+	}
+
+	@Test
+	void setCodeAndCollectorNumberSuggestThatExactFrenchPrint() throws Exception {
+		JsonNode suggestion = json(get("/api/cards/suggestions?q=FIC%20168")).get("suggestions").get(0);
+
+		assertThat(suggestion.get("name").asString()).isEqualTo("Cloud, Ex-SOLDIER");
+		assertThat(suggestion.get("label").asString()).isEqualTo("Cloud, ex-SOLDAT");
+		assertThat(suggestion.get("printId").asString()).isEqualTo(CLOUD_FR_PRINT);
+		assertThat(suggestion.get("printLabel").asString()).isEqualTo("Final Fantasy Commander · n° 168");
+	}
+
+	@Test
+	void printFoundByNumberIsShownWithItsOwnImage() throws Exception {
+		get("/api/cards/suggestions?q=fic%20%23168");
+
+		post("/api/cards/show", "{\"name\":\"Cloud, Ex-SOLDIER\",\"printId\":\"" + CLOUD_FR_PRINT + "\"}");
+
+		JsonNode card = table.next().get("card");
+		assertThat(card.get("images").get(0).asString()).isEqualTo("/api/cards/images/" + CLOUD_FR_PRINT + "-0.jpg");
+		assertThat(getBytes(card.get("images").get(0).asString()).statusCode()).isEqualTo(200);
+	}
+
+	@Test
+	void printUnknownToTheCacheIsFetchedById() throws Exception {
+		post("/api/cards/show", "{\"name\":\"Lightning Bolt\",\"printId\":\"" + BOLT_ENGLISH_DEFAULT_PRINT + "\"}");
+
+		assertThat(table.next().get("card").get("images").get(0).asString())
+				.isEqualTo("/api/cards/images/" + BOLT_ENGLISH_DEFAULT_PRINT + "-0.jpg");
+	}
+
+	@Test
+	void printOfAnotherCardIsIgnored() throws Exception {
+		post("/api/cards/show", "{\"name\":\"Cloud, Ex-SOLDIER\",\"printId\":\"" + BOLT_ENGLISH_DEFAULT_PRINT + "\"}");
+
+		assertThat(table.next().get("card").get("images").get(0).asString())
+				.doesNotContain(BOLT_ENGLISH_DEFAULT_PRINT);
+	}
+
+	@Test
+	void unknownIllustrationFallsBackToTheDefaultOne() throws Exception {
+		post("/api/cards/show", "{\"name\":\"Lightning Bolt\",\"printId\":\"00000000-0000-0000-0000-000000000000\"}");
+
+		assertThat(table.next().get("card").get("images").get(0).asString())
+				.isEqualTo("/api/cards/images/" + BOLT_IMAGE);
+	}
+
+	@Test
+	void malformedPrintIdIsRejected() throws Exception {
+		assertThat(post("/api/cards/show", "{\"name\":\"Lightning Bolt\",\"printId\":\"../x\"}").statusCode())
+				.isEqualTo(400);
+	}
+
+	@Test
+	void thumbnailOfAnUnlistedPrintIsNotFound() throws Exception {
+		assertThat(getBytes("/api/cards/thumbnails/00000000-0000-0000-0000-000000000000.jpg").statusCode())
+				.isEqualTo(404);
 	}
 
 	@Test

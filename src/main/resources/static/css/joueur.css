@@ -453,8 +453,59 @@ body.modal-open {
 	color: var(--accent);
 }
 
-/* Pendant l'envoi : une seule carte à la fois */
-.card-search.sending .card-suggestion {
+/* Grille des illustrations : vignettes entières, proportions respectées (règles Scryfall) */
+.illustration-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+	gap: 10px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.illustration-choice {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	width: 100%;
+	padding: 6px;
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+	background: var(--surface);
+	text-align: left;
+	cursor: pointer;
+}
+
+.illustration-choice:active {
+	border-color: var(--accent);
+}
+
+.illustration-choice img {
+	display: block;
+	width: 100%;
+	aspect-ratio: 146 / 204;
+	object-fit: contain;
+	background: var(--surface-raised);
+}
+
+.illustration-caption {
+	overflow: hidden;
+	font-size: 0.8rem;
+	font-weight: 600;
+	line-height: 1.2;
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+}
+
+.illustration-details {
+	color: var(--text-muted);
+	font-size: 0.75rem;
+}
+
+/* Pendant une requête : une seule carte à la fois */
+.card-search.sending .card-suggestion,
+.card-search.sending .illustration-choice {
 	opacity: 0.5;
 	pointer-events: none;
 }

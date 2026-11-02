@@ -64,7 +64,7 @@ class ScryfallClientTest {
 	void searchWithoutResultIsAnEmptyList() {
 		scryfall.stub("/cards/search", Map.of(), 404, "fr-prints-none.json");
 
-		assertThat(client.search("oracleid:x lang:fr", true)).isEmpty();
+		assertThat(client.search("oracleid:x lang:fr", ScryfallClient.SearchMode.ALL_PRINTS)).isEmpty();
 	}
 
 	@Test
@@ -72,13 +72,37 @@ class ScryfallClientTest {
 		scryfall.stub("/cards/search", Map.of(), 200, "fr-prints-lightning-bolt.json");
 		String query = "!\"Lightning Bolt\" lang:fr & co";
 
-		List<JsonNode> prints = client.search(query, true);
+		List<JsonNode> prints = client.search(query, ScryfallClient.SearchMode.ALL_PRINTS);
 
 		assertThat(prints).hasSize(4);
 		assertThat(scryfall.requests().getFirst().parameters())
 				.containsEntry("q", query)
 				.containsEntry("unique", "prints")
 				.containsEntry("order", "released");
+	}
+
+	@Test
+	void searchByIllustrationAsksForUniqueArt() {
+		scryfall.stub("/cards/search", Map.of("unique", "art"), 200, "arts-lightning-bolt.json");
+
+		assertThat(client.search("oracleid:x", ScryfallClient.SearchMode.ONE_PER_ILLUSTRATION)).hasSize(6);
+		assertThat(scryfall.requests().getFirst().parameters()).containsEntry("order", "released");
+	}
+
+	@Test
+	void findsAPrintBySetCodeCollectorNumberAndLanguage() {
+		scryfall.stub("/cards/fic/168/fr", Map.of(), 200, "number-fic-168-fr.json");
+
+		assertThat(client.findByCollectorNumber("fic", "168", "fr"))
+				.hasValueSatisfying(card -> assertThat(card.get("printed_name").asString()).isEqualTo("Cloud, ex-SOLDAT"));
+		assertThat(client.findByCollectorNumber("fic", "99999", "fr")).isEmpty();
+	}
+
+	@Test
+	void findsAPrintById() {
+		scryfall.stub("/cards/955189c4-cfbc-47be-9681-cfffab403443", Map.of(), 200, "number-fic-168-en.json");
+
+		assertThat(client.findById("955189c4-cfbc-47be-9681-cfffab403443")).isPresent();
 	}
 
 	@Test
