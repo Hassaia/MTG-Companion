@@ -23,9 +23,11 @@ class PageRoutesTest {
 	@CsvSource({
 			"/, MTG Companion",
 			"/config, Lancer la partie",
-			"/table, player-template",
+			"/table, card-overlay",
 			"/joueur, PV de commandant restants",
 			"/js/connection.js, connectToGame",
+			"/js/card-search.js, initCardSearch",
+			"/js/card-history.js, toggleFavorite",
 	})
 	void servesPage(String path, String expectedContent) throws Exception {
 		HttpResponse<String> response = get(path);

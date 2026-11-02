@@ -1,0 +1,259 @@
+package com.wahib.mtg.mtg_companion.cards;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.file.Path;
+import java.util.Map;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
+
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.web.socket.TextMessage;
+import org.springframework.web.socket.WebSocketSession;
+import org.springframework.web.socket.client.standard.StandardWebSocketClient;
+import org.springframework.web.socket.handler.TextWebSocketHandler;
+
+import tools.jackson.databind.JsonNode;
+
+/**
+ * Parcours complet avec un faux Scryfall : suggestions, affichage diffusé par WebSocket,
+ * images servies depuis le cache, fermeture, erreurs et mode hors connexion.
+ */
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+class CardIntegrationTest {
+
+	private static final long TIMEOUT_SECONDS = 5;
+	private static final String BOLT_IMAGE = "1f93e813-516d-43c6-a2f3-4196c18620a5-0.jpg";
+
+	@TempDir
+	static Path directory;
+
+	static FakeScryfallServer scryfall;
+
+	@DynamicPropertySource
+	static void properties(DynamicPropertyRegistry registry) throws Exception {
+		scryfall = new FakeScryfallServer();
+		String boltOracleId = ScryfallFixtures.json("named-lightning-bolt.json").get("oracle_id").asString();
+		scryfall.stub("/cards/named", Map.of("exact", "Lightning Bolt"), 200, "named-lightning-bolt.json")
+				.stub("/cards/search", Map.of("q", "oracleid:" + boltOracleId + " lang:fr"), 200, "fr-prints-lightning-bolt.json")
+				.stub("/cards/search", Map.of("q", "foud lang:fr"), 200, "search-fr-foud.json")
+				.stubBody("/cards/autocomplete", Map.of("q", "foud"), "{\"object\":\"catalog\",\"data\":[]}")
+				.stubStatus("/cards/search", Map.of("q", "foudr lang:fr"), 503)
+				.stubStatus("/cards/named", Map.of("exact", "Broken Card"), 503);
+
+		registry.add("mtg.scryfall.base-url", scryfall::baseUrl);
+		registry.add("mtg.card-cache-dir", () -> directory.resolve("card-cache").toString());
+		registry.add("mtg.state-file", () -> directory.resolve("state.json").toString());
+		registry.add("mtg.card-display-duration", () -> "2s");
+	}
+
+	@AfterAll
+	static void stopScryfall() {
+		scryfall.close();
+	}
+
+	@Value("${local.server.port}")
+	int port;
+
+	private TableClient table;
+
+	@BeforeEach
+	void connectTable() throws Exception {
+		table = new TableClient();
+		table.session = new StandardWebSocketClient()
+				.execute(table, "ws://localhost:" + port + "/ws")
+				.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+		assertThat(table.next().get("type").asString()).isEqualTo("STATE");
+	}
+
+	@AfterEach
+	void hideCardAndDisconnect() throws Exception {
+		post("/api/cards/hide", "");
+		table.session.close();
+	}
+
+	@Test
+	void suggestionsMixFrenchNamesFromScryfall() throws Exception {
+		JsonNode response = json(get("/api/cards/suggestions?q=foud"));
+
+		assertThat(response.get("warning").isNull()).isTrue();
+		JsonNode first = response.get("suggestions").get(0);
+		assertThat(first.get("name").asString()).isEqualTo("Judgment Bolt");
+		assertThat(first.get("label").asString()).isEqualTo("Foudre du jugement");
+	}
+
+	@Test
+	void repeatedQueryIsAnsweredFromMemory() throws Exception {
+		get("/api/cards/suggestions?q=foud");
+		long requestsBefore = scryfall.requests().size();
+
+		get("/api/cards/suggestions?q=FOUD");
+
+		assertThat(scryfall.requests()).hasSize((int) requestsBefore);
+	}
+
+	@Test
+	void shownCardIsBroadcastWithImagesServedByThisServer() throws Exception {
+		HttpResponse<String> response = post("/api/cards/show", "{\"name\":\"Lightning Bolt\"}");
+
+		assertThat(response.statusCode()).isEqualTo(204);
+		JsonNode shown = table.next();
+		assertThat(shown.get("type").asString()).isEqualTo("CARD_SHOWN");
+		assertThat(shown.get("durationMs").asLong()).isEqualTo(2000);
+		JsonNode card = shown.get("card");
+		assertThat(card.get("lang").asString()).isEqualTo("fr");
+		assertThat(card.get("faces").get(0).get("name").asString()).isEqualTo("Foudre");
+		assertThat(card.get("images").get(0).asString()).isEqualTo("/api/cards/images/" + BOLT_IMAGE);
+
+		HttpResponse<byte[]> image = getBytes(card.get("images").get(0).asString());
+		assertThat(image.statusCode()).isEqualTo(200);
+		assertThat(image.headers().firstValue("Content-Type")).hasValue("image/jpeg");
+		assertThat(image.body()).isEqualTo(FakeScryfallServer.IMAGE_BYTES);
+	}
+
+	@Test
+	void cachedCardIsShownAgainWithoutCallingScryfall() throws Exception {
+		post("/api/cards/show", "{\"name\":\"Lightning Bolt\"}");
+		table.next();
+		long namedRequests = scryfall.countRequests("/cards/named", "exact", "Lightning Bolt");
+		long imageRequests = scryfall.requests().stream().filter(request -> request.path().startsWith("/images/")).count();
+
+		post("/api/cards/show", "{\"name\":\"lightning bolt\"}");
+		table.next();
+
+		assertThat(scryfall.countRequests("/cards/named", "exact", "Lightning Bolt")).isEqualTo(namedRequests);
+		assertThat(scryfall.requests().stream().filter(request -> request.path().startsWith("/images/")).count())
+				.isEqualTo(imageRequests);
+	}
+
+	@Test
+	void hideIsBroadcast() throws Exception {
+		post("/api/cards/show", "{\"name\":\"Lightning Bolt\"}");
+		table.next();
+
+		assertThat(post("/api/cards/hide", "").statusCode()).isEqualTo(204);
+
+		assertThat(table.next().get("type").asString()).isEqualTo("CARD_HIDDEN");
+	}
+
+	@Test
+	void cardHidesItselfAfterTheDisplayDuration() throws Exception {
+		post("/api/cards/show", "{\"name\":\"Lightning Bolt\"}");
+		table.next();
+
+		assertThat(table.next().get("type").asString()).isEqualTo("CARD_HIDDEN");
+	}
+
+	@Test
+	void screenConnectingLaterReceivesTheDisplayedCard() throws Exception {
+		post("/api/cards/show", "{\"name\":\"Lightning Bolt\"}");
+		table.next();
+
+		TableClient late = new TableClient();
+		late.session = new StandardWebSocketClient()
+				.execute(late, "ws://localhost:" + port + "/ws")
+				.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+
+		assertThat(late.next().get("type").asString()).isEqualTo("STATE");
+		JsonNode shown = late.next();
+		late.session.close();
+		assertThat(shown.get("type").asString()).isEqualTo("CARD_SHOWN");
+		assertThat(shown.get("remainingMs").asLong()).isBetween(1L, 2000L);
+	}
+
+	@Test
+	void unknownCardIsReportedOnlyToTheRequester() throws Exception {
+		HttpResponse<String> response = post("/api/cards/show", "{\"name\":\"Carte qui n existe pas\"}");
+
+		assertThat(response.statusCode()).isEqualTo(404);
+		assertThat(json(response).get("message").asString()).contains("Carte introuvable");
+		assertThat(table.messages.poll(300, TimeUnit.MILLISECONDS)).isNull();
+	}
+
+	@Test
+	void scryfallFailureGivesAClearMessage() throws Exception {
+		HttpResponse<String> response = post("/api/cards/show", "{\"name\":\"Broken Card\"}");
+
+		assertThat(response.statusCode()).isEqualTo(503);
+		assertThat(json(response).get("message").asString()).contains("Scryfall");
+	}
+
+	@Test
+	void whenScryfallFailsSuggestionsComeFromCachedCards() throws Exception {
+		post("/api/cards/show", "{\"name\":\"Lightning Bolt\"}");
+		table.next();
+
+		JsonNode response = json(get("/api/cards/suggestions?q=foudr"));
+
+		assertThat(response.get("warning").asString()).contains("Seules les cartes déjà affichées");
+		assertThat(response.get("suggestions").get(0).get("label").asString()).isEqualTo("Foudre");
+	}
+
+	@Test
+	void invalidImageNamesAreRejected() throws Exception {
+		// Tomcat refuse lui-même les barres obliques encodées, avant le contrôleur
+		assertThat(getBytes("/api/cards/images/..%2Fstate.json").statusCode()).isEqualTo(400);
+		// Un nom qui atteint le contrôleur sans respecter le format attendu n'est jamais lu
+		assertThat(getBytes("/api/cards/images/state.json").statusCode()).isEqualTo(404);
+	}
+
+	private HttpResponse<String> get(String path) throws Exception {
+		try (HttpClient client = HttpClient.newHttpClient()) {
+			return client.send(HttpRequest.newBuilder(uri(path)).build(), HttpResponse.BodyHandlers.ofString());
+		}
+	}
+
+	private HttpResponse<byte[]> getBytes(String path) throws Exception {
+		try (HttpClient client = HttpClient.newHttpClient()) {
+			return client.send(HttpRequest.newBuilder(uri(path)).build(), HttpResponse.BodyHandlers.ofByteArray());
+		}
+	}
+
+	private HttpResponse<String> post(String path, String jsonBody) throws Exception {
+		try (HttpClient client = HttpClient.newHttpClient()) {
+			HttpRequest request = HttpRequest.newBuilder(uri(path))
+					.header("Content-Type", "application/json")
+					.POST(HttpRequest.BodyPublishers.ofString(jsonBody))
+					.build();
+			return client.send(request, HttpResponse.BodyHandlers.ofString());
+		}
+	}
+
+	private URI uri(String path) {
+		return URI.create("http://localhost:" + port + path);
+	}
+
+	private static JsonNode json(HttpResponse<String> response) {
+		return ScryfallFixtures.JSON.readTree(response.body());
+	}
+
+	private static class TableClient extends TextWebSocketHandler {
+
+		final BlockingQueue<String> messages = new LinkedBlockingQueue<>();
+		WebSocketSession session;
+
+		@Override
+		protected void handleTextMessage(WebSocketSession session, TextMessage message) {
+			messages.add(message.getPayload());
+		}
+
+		JsonNode next() throws InterruptedException {
+			String payload = messages.poll(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+			assertThat(payload).as("message reçu avant le délai").isNotNull();
+			return ScryfallFixtures.JSON.readTree(payload);
+		}
+	}
+}
