@@ -20,9 +20,11 @@ public record CardIllustrations(String name, List<Illustration> illustrations) {
 	 * @param images          grandes images pour la table (deux pour une carte double face)
 	 * @param arts            illustrations seules (art_crop), une par face illustrée ; {@code null} pour une
 	 *                        entrée de cache écrite avant leur prise en charge, à récupérer de nouveau
+	 * @param setCode         code de l'édition (« fic »), qui avec le numéro et la langue désigne une impression ;
+	 *                        {@code null} pour une entrée de cache écrite avant la prise en charge des langues
 	 */
 	public record Illustration(String printId, String lang, String setName, String collectorNumber,
-			String releasedAt, String thumbnailUrl, List<Card.CardImage> images, List<Art> arts) {
+			String releasedAt, String thumbnailUrl, List<Card.CardImage> images, List<Art> arts, String setCode) {
 
 		public Illustration {
 			images = List.copyOf(images);
@@ -32,7 +34,7 @@ public record CardIllustrations(String name, List<Illustration> illustrations) {
 		/** Impression sans information d'illustration seule : voir {@code arts}. */
 		public Illustration(String printId, String lang, String setName, String collectorNumber,
 				String releasedAt, String thumbnailUrl, List<Card.CardImage> images) {
-			this(printId, lang, setName, collectorNumber, releasedAt, thumbnailUrl, images, null);
+			this(printId, lang, setName, collectorNumber, releasedAt, thumbnailUrl, images, null, null);
 		}
 
 		public boolean hasArt() {

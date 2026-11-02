@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -34,6 +35,7 @@ public class CardService {
 	private static final int MAX_FRENCH_RESULTS = 20;
 	private static final int MAX_REMEMBERED_QUERIES = 200;
 	private static final Duration SUGGESTIONS_MEMORY = Duration.ofMinutes(10);
+	private static final Duration MISSING_VARIANT_MEMORY = Duration.ofMinutes(10);
 
 	private static final Logger log = LoggerFactory.getLogger(CardService.class);
 
@@ -68,6 +70,8 @@ public class CardService {
 			};
 	/** Adresse Scryfall de chaque vignette proposée, pour la télécharger quand le téléphone la demande. */
 	private final Map<String, String> thumbnailUrls = new ConcurrentHashMap<>();
+	/** Versions linguistiques que Scryfall n'a pas : inutile de les redemander à chaque changement de langue. */
+	private final Map<String, Instant> missingVariants = new ConcurrentHashMap<>();
 
 	public CardService(ScryfallClient scryfall, CardCache cache) {
 		this.scryfall = scryfall;
@@ -135,16 +139,65 @@ public class CardService {
 	}
 
 	/**
-	 * Carte prête à afficher, images comprises.
+	 * Carte prête à afficher, images comprises, dans la langue demandée. Les versions FR et EN sont celles
+	 * de la même édition et du même numéro de collection que l'impression choisie, jamais une autre impression.
+	 * Une langue indisponible est remplacée par l'autre (avec un avertissement) ; en mode {@code both},
+	 * seule la langue disponible est affichée.
 	 *
 	 * @param englishName nom anglais complet, tel que renvoyé par les suggestions
 	 * @param printId     impression choisie par le joueur, ou null pour le choix automatique
-	 *                    (impression française la plus récente) ; une impression inconnue donne aussi le choix automatique
+	 *                    (première illustration, française si possible) ; une impression inconnue donne aussi le choix automatique
+	 * @param lang        {@code fr}, {@code en} ou {@code both}
 	 * @throws CardNotFoundException       si aucune carte ne porte ce nom
-	 * @throws ScryfallUnavailableException si ce qui manque au cache ne peut pas être récupéré
+	 * @throws ScryfallUnavailableException si aucune image n'est disponible dans aucune des langues
 	 */
-	public Card resolve(String englishName, String printId) {
-		Card card = defaultCard(englishName);
+	public CardDisplay resolve(String englishName, String printId, String lang) {
+		Illustration base = baseIllustration(englishName, printId);
+		List<String> errors = new ArrayList<>();
+		List<String> warnings = new ArrayList<>();
+		List<CardDisplay.Variant> variants = new ArrayList<>();
+		if (lang.equals("both")) {
+			for (String wanted : List.of("fr", "en")) {
+				Optional<Illustration> found = variant(englishName, base, wanted, errors);
+				if (found.isPresent()) {
+					variants.add(new CardDisplay.Variant(wanted, found.get().images()));
+				}
+				else {
+					warnings.add("Version " + languageName(wanted) + " indisponible" + reference(base) + " : seule la version "
+							+ languageName(other(wanted)) + " est affichée.");
+				}
+			}
+			if (variants.size() == 2 || variants.isEmpty()) {
+				warnings.clear();
+			}
+		}
+		else {
+			Optional<Illustration> found = variant(englishName, base, lang, errors);
+			if (found.isPresent()) {
+				variants.add(new CardDisplay.Variant(lang, found.get().images()));
+			}
+			else {
+				found = variant(englishName, base, other(lang), errors);
+				found.ifPresent(print -> {
+					variants.add(new CardDisplay.Variant(other(lang), print.images()));
+					warnings.add("Version " + languageName(lang) + " indisponible" + reference(base) + " : version "
+							+ languageName(other(lang)) + " affichée.");
+				});
+			}
+		}
+		if (variants.isEmpty()) {
+			throw new ScryfallUnavailableException(errors.isEmpty()
+					? "Aucune image disponible" + reference(base) + " dans la langue demandée."
+					: errors.getFirst());
+		}
+		if (!errors.isEmpty() && !warnings.isEmpty()) {
+			warnings.add(errors.getFirst());
+		}
+		return new CardDisplay(englishName, variants, warnings);
+	}
+
+	/** L'impression choisie, ou à défaut la première illustration de la carte (française si possible). */
+	private Illustration baseIllustration(String englishName, String printId) {
 		if (printId != null) {
 			// Une illustration de la grille, ou une impression demandée par édition et numéro
 			Optional<Illustration> chosen = illustrations(englishName).illustrations().stream()
@@ -153,15 +206,88 @@ public class CardService {
 					.or(() -> cache.findPrint(englishName, printId))
 					.or(() -> fetchPrint(englishName, printId));
 			if (chosen.isPresent()) {
-				// Les noms et textes restent ceux de la carte ; seule l'image change
-				card = new Card(card.name(), card.lang(), card.faces(), chosen.get().images());
+				return chosen.get();
 			}
-			else {
-				log.info("Impression {} inconnue pour {}, choix automatique", printId, englishName);
-			}
+			log.info("Impression {} inconnue pour {}, choix automatique", printId, englishName);
 		}
-		downloadMissingImages(card);
-		return card;
+		return illustrations(englishName).illustrations().stream()
+				.filter(illustration -> !illustration.images().isEmpty())
+				.findFirst()
+				.or(() -> defaultIllustrationOnly(defaultCard(englishName)).illustrations().stream().findFirst())
+				.orElseThrow(() -> new ScryfallUnavailableException("Aucune image disponible pour « " + englishName + " »."));
+	}
+
+	/** La version de {@code base} dans cette langue, images téléchargées ; vide si elle n'existe pas ou est inaccessible. */
+	private Optional<Illustration> variant(String englishName, Illustration base, String lang, List<String> errors) {
+		try {
+			Optional<Illustration> found = findVariant(englishName, base, lang);
+			if (found.isPresent()) {
+				downloadMissingImages(found.get().images());
+			}
+			return found;
+		}
+		catch (ScryfallUnavailableException e) {
+			errors.add(e.getMessage());
+			return Optional.empty();
+		}
+	}
+
+	private Optional<Illustration> findVariant(String englishName, Illustration base, String lang) {
+		if (lang.equalsIgnoreCase(base.lang())) {
+			return Optional.of(base);
+		}
+		Illustration located = withSetCode(englishName, base);
+		if (located.setCode() == null || located.collectorNumber() == null) {
+			return Optional.empty();
+		}
+		String key = located.setCode() + "/" + located.collectorNumber() + "/" + lang;
+		Optional<Illustration> cached = cache.findVariant(englishName, located.setCode(), located.collectorNumber(), lang);
+		if (cached.isPresent()) {
+			return cached;
+		}
+		Instant missingUntil = missingVariants.get(key);
+		if (missingUntil != null && Instant.now().isBefore(missingUntil)) {
+			return Optional.empty();
+		}
+		// Correspondance exacte (édition, numéro, langue) ; l'image doit être une vraie photo et la carte la même
+		Optional<Illustration> fetched = scryfall.findByCollectorNumber(located.setCode(), located.collectorNumber(), lang)
+				.filter(print -> print.get("name") != null && englishName.equalsIgnoreCase(print.get("name").asString()))
+				.filter(ScryfallCardMapper::hasRealImage)
+				.flatMap(ScryfallCardMapper::illustration);
+		if (fetched.isEmpty()) {
+			missingVariants.put(key, Instant.now().plus(MISSING_VARIANT_MEMORY));
+			return Optional.empty();
+		}
+		try {
+			cache.saveVariant(englishName, located.setCode(), located.collectorNumber(), lang, fetched.get());
+		}
+		catch (IOException e) {
+			log.warn("Impossible de mettre en cache la version {} de {}", lang, englishName, e);
+		}
+		return fetched;
+	}
+
+	/** Une impression en cache avant la prise en charge des langues ne connaît pas son édition : Scryfall la donne. */
+	private Illustration withSetCode(String englishName, Illustration print) {
+		if (print.setCode() != null) {
+			return print;
+		}
+		Optional<Illustration> fetched = scryfall.findById(print.printId()).flatMap(ScryfallCardMapper::illustration);
+		fetched.ifPresent(found -> savePrint(englishName, found));
+		return fetched.orElse(print);
+	}
+
+	private static String other(String lang) {
+		return lang.equals("fr") ? "en" : "fr";
+	}
+
+	private static String languageName(String lang) {
+		return lang.equals("fr") ? "française" : "anglaise";
+	}
+
+	private static String reference(Illustration print) {
+		return print.setCode() == null || print.collectorNumber() == null ? ""
+				: " (" + print.setCode().toUpperCase() + " n° " + print.collectorNumber() + ")";
 	}
 
 	/**
@@ -328,8 +454,8 @@ public class CardService {
 				List.of(new Illustration(printId, card.lang(), null, null, null, null, card.images())));
 	}
 
-	private void downloadMissingImages(Card card) {
-		for (Card.CardImage image : card.images()) {
+	private void downloadMissingImages(List<Card.CardImage> images) {
+		for (Card.CardImage image : images) {
 			if (cache.hasImage(image.fileName())) {
 				continue;
 			}

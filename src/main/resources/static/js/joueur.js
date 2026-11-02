@@ -34,8 +34,7 @@ const connection = connectToGame({
 	// Après une coupure, le serveur renvoie la carte affichée s'il y en a encore une
 	onOpen: hideCardBanner,
 	onCardShown(message) {
-		document.getElementById('card-banner-name').textContent =
-			message.card.faces.map((face) => face.name).join(' // ');
+		document.getElementById('card-banner-name').textContent = message.card.name;
 		document.getElementById('card-banner').hidden = false;
 	},
 	onCardHidden: hideCardBanner,
@@ -247,7 +246,8 @@ commanderRows.addEventListener('click', (event) => {
 changePlayerButton.addEventListener('click', () => selectPlayer(null));
 
 initCardSearch({
-	onCardSent: (label) => showToast(`« ${label} » est affichée sur la table.`, 'success'),
+	onCardSent: (label, warnings) => showToast(
+		[`« ${label} » est affichée sur la table.`, ...warnings].join(' '), 'success'),
 });
 
 initZoneBackground({

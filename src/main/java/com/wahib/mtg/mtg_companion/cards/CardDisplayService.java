@@ -27,7 +27,10 @@ public class CardDisplayService {
 	public static final String IMAGE_URL_PREFIX = "/api/cards/images/";
 
 	/** @param images adresses des images, servies par ce serveur et non par Scryfall */
-	public record CardView(String name, String lang, List<Card.CardFace> faces, List<String> images) {
+	public record VariantView(String lang, List<String> images) {
+	}
+
+	public record CardView(String name, List<VariantView> variants, List<String> warnings) {
 	}
 
 	private record DisplayedCard(CardView card, long hideAtNanos) {
@@ -50,7 +53,7 @@ public class CardDisplayService {
 		this.displayDuration = displayDuration;
 	}
 
-	public synchronized void show(Card card) {
+	public synchronized void show(CardDisplay card) {
 		cancelHideTask();
 		DisplayedCard displayed = new DisplayedCard(toView(card), System.nanoTime() + displayDuration.toNanos());
 		current = displayed;
@@ -99,8 +102,11 @@ public class CardDisplayService {
 		}
 	}
 
-	private static CardView toView(Card card) {
-		List<String> images = card.images().stream().map(image -> IMAGE_URL_PREFIX + image.fileName()).toList();
-		return new CardView(card.name(), card.lang(), card.faces(), images);
+	private static CardView toView(CardDisplay card) {
+		List<VariantView> variants = card.variants().stream()
+				.map(variant -> new VariantView(variant.lang(),
+						variant.images().stream().map(image -> IMAGE_URL_PREFIX + image.fileName()).toList()))
+				.toList();
+		return new CardView(card.name(), variants, card.warnings());
 	}
 }

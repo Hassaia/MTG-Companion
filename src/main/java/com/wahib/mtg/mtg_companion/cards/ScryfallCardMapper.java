@@ -98,7 +98,7 @@ public final class ScryfallCardMapper {
 		}
 		return Optional.of(new CardIllustrations.Illustration(text(print, "id"), text(print, "lang"),
 				text(print, "set_name"), text(print, "collector_number"), text(print, "released_at"),
-				thumbnailUrl(print), images, arts(print)));
+				thumbnailUrl(print), images, arts(print), text(print, "set")));
 	}
 
 	/** Nom anglais et nom français d'une carte trouvée par une recherche en français, pour les suggestions. */
