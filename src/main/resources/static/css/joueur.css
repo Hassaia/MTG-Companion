@@ -84,8 +84,8 @@
 	flex: 1;
 	display: flex;
 	flex-direction: column;
-	gap: 12px;
-	padding: 12px 16px 0;
+	gap: 8px;
+	padding: 8px 16px 0;
 }
 
 .opponents {
@@ -134,8 +134,8 @@
 	flex-direction: column;
 	align-items: center;
 	justify-content: center;
-	gap: 8px;
-	min-height: 140px;
+	gap: 4px;
+	min-height: 0;
 }
 
 .life-area {
@@ -146,7 +146,7 @@
 }
 
 .own-life-value {
-	font-size: clamp(5rem, 32vw, 11rem);
+	font-size: clamp(4rem, 20vw, 5rem);
 	font-weight: 800;
 	font-variant-numeric: tabular-nums;
 	line-height: 1;
@@ -159,7 +159,7 @@
 	left: 100%;
 	top: 0.2em;
 	margin-left: 8px;
-	font-size: 1.8rem;
+	font-size: 1.4rem;
 	font-weight: 700;
 	font-variant-numeric: tabular-nums;
 	opacity: 0;
@@ -232,7 +232,7 @@
 }
 
 .commander-row button {
-	min-height: 52px;
+	min-height: 48px;
 	border: 1px solid var(--border);
 	border-radius: 10px;
 	background: var(--surface-raised);
@@ -248,15 +248,15 @@
 	grid-template-columns: 1fr 1fr;
 	gap: 10px;
 	margin: 0 -16px;
-	padding: 10px 16px calc(12px + env(safe-area-inset-bottom));
+	padding: 8px 16px calc(10px + env(safe-area-inset-bottom));
 	background: var(--bg);
 }
 
 .life-button {
-	min-height: 76px;
+	min-height: 60px;
 	border: 0;
 	border-radius: var(--radius);
-	font-size: 2.2rem;
+	font-size: 1.8rem;
 	font-weight: 800;
 	cursor: pointer;
 }
@@ -289,7 +289,7 @@
 	align-items: center;
 	justify-content: center;
 	gap: 2px;
-	min-height: 52px;
+	min-height: 54px;
 	padding: 4px;
 	border: 1px dashed var(--border);
 	border-radius: var(--radius);
@@ -301,8 +301,56 @@
 }
 
 .quick-icon {
-	font-size: 1.25rem;
-	line-height: 1;
+	flex: none;
+	width: 22px;
+	height: 22px;
+}
+
+/* Écrans de faible hauteur (ex. 375 × 667) : on resserre, le défilement reste possible en dessous */
+@media (max-height: 700px) {
+	.play-screen {
+		gap: 6px;
+		padding-top: 6px;
+	}
+
+	.opponents li {
+		padding: 4px 10px;
+	}
+
+	.opponents .opponent-life {
+		font-size: 1.2rem;
+	}
+
+	.own-life-value {
+		font-size: 4rem;
+	}
+
+	.open-card-search {
+		min-height: 48px;
+		font-size: 0.8rem;
+	}
+
+	.life-button {
+		min-height: 52px;
+		font-size: 1.6rem;
+	}
+
+	.life-buttons {
+		gap: 8px;
+		padding-top: 6px;
+	}
+
+	.commander-section h2 {
+		margin-bottom: 4px;
+	}
+
+	.commander-rows {
+		gap: 6px;
+	}
+
+	.commander-row button {
+		min-height: 44px;
+	}
 }
 
 /* Consultation des rulings */
