@@ -24,7 +24,7 @@ class PageRoutesTest {
 			"/, MTG Companion",
 			"/config, Lancer la partie",
 			"/table, player-template",
-			"/joueur, Dégâts de commandant reçus",
+			"/joueur, PV de commandant restants",
 			"/js/connection.js, connectToGame",
 	})
 	void servesPage(String path, String expectedContent) throws Exception {
