@@ -528,3 +528,232 @@ body.modal-open {
 .toast[data-kind="success"] {
 	background: var(--success);
 }
+
+/* --- Illustration de la zone du joueur sur la table */
+
+.zone-background {
+	z-index: 4;
+}
+
+.zone-preview {
+	--ratio: 1;
+	position: relative;
+	width: min(100%, calc(42vh * var(--ratio)));
+	margin-inline: auto;
+	aspect-ratio: var(--ratio);
+	overflow: hidden;
+	border-top: 6px solid var(--player-color, var(--border));
+	border-radius: var(--radius);
+	background-color: var(--surface);
+	background-repeat: no-repeat;
+	background-size: cover;
+}
+
+.zone-preview[hidden] {
+	display: none;
+}
+
+/* Même bloc compact, dans le même coin que sur la table (data-v / data-h posés par zone-background.js) */
+.zone-preview-info {
+	position: absolute;
+	box-sizing: border-box;
+	max-width: 62%;
+	padding: 4px 10px;
+	border-radius: 8px;
+	background: rgb(10 11 14 / 0.72);
+	color: var(--player-color, var(--text));
+	font-size: 0.85rem;
+	text-align: center;
+}
+
+.zone-preview-info strong {
+	margin-left: 4px;
+	color: var(--text);
+	font-size: 1.3rem;
+}
+
+.zone-preview[data-v="top"] .zone-preview-info {
+	top: 6px;
+}
+
+.zone-preview[data-v="bottom"] .zone-preview-info {
+	bottom: 6px;
+}
+
+.zone-preview[data-h="left"] .zone-preview-info {
+	left: 6px;
+}
+
+.zone-preview[data-h="right"] .zone-preview-info {
+	right: 6px;
+}
+
+.zone-preview[data-h="center"] .zone-preview-info {
+	left: 50%;
+	max-width: calc(100% - 12px);
+	transform: translateX(-50%);
+}
+
+.zone-preview-credit {
+	margin: 2px 0 0;
+	color: var(--text-muted);
+	font-size: 0.55rem;
+	line-height: 1.25;
+}
+
+.zone-layout-hint {
+	margin: 0;
+	color: var(--text-muted);
+	font-size: 0.85rem;
+}
+
+.zone-faces {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.zone-slider {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	color: var(--text-muted);
+}
+
+.zone-actions {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.zone-button {
+	min-height: 48px;
+	padding: 0 16px;
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+	background: var(--surface-raised);
+	color: var(--text);
+	font-weight: 600;
+	cursor: pointer;
+}
+
+.zone-button[aria-pressed="true"] {
+	border-color: var(--accent);
+	color: var(--accent);
+}
+
+.zone-button.primary {
+	border-color: var(--accent);
+	background: var(--accent);
+	color: var(--accent-text);
+}
+
+.zone-button.danger {
+	color: var(--danger);
+}
+
+/* --- Onglets, bibliothèque et disposition réglée */
+
+.zone-tabs,
+.zone-layouts {
+	display: flex;
+	gap: 8px;
+}
+
+.zone-tab {
+	flex: 1;
+	min-height: 44px;
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+	background: var(--surface);
+	color: var(--text-muted);
+	font-weight: 600;
+	cursor: pointer;
+}
+
+.zone-tab[aria-selected="true"] {
+	border-color: var(--accent);
+	color: var(--accent);
+}
+
+.zone-layouts .zone-button {
+	flex: 1;
+	padding: 0 8px;
+}
+
+.zone-pane,
+.zone-editor {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.zone-pane[hidden],
+.zone-editor[hidden] {
+	display: none;
+}
+
+.zone-import {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.zone-library {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+	gap: 10px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.zone-library li {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.zone-library-choice {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	padding: 0;
+	overflow: hidden;
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+	background: var(--surface);
+	color: var(--text);
+	text-align: left;
+	cursor: pointer;
+}
+
+.zone-library-choice img {
+	width: 100%;
+	aspect-ratio: 4 / 3;
+	object-fit: cover;
+	background: var(--surface-raised);
+}
+
+.zone-library-name {
+	padding: 0 8px;
+	overflow: hidden;
+	font-size: 0.85rem;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.zone-library-size {
+	padding: 0 8px 6px;
+	color: var(--text-muted);
+	font-size: 0.7rem;
+}
+
+.zone-library-delete {
+	min-height: 36px;
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+	background: transparent;
+	color: var(--danger);
+	cursor: pointer;
+}

@@ -1,3 +1,4 @@
+import { artCreditText, artUrl } from './art-credit.js';
 import { connectToGame } from './connection.js';
 import { LifeChangeIndicator } from './life-change.js';
 
@@ -89,6 +90,9 @@ function buildPanels(game) {
 
 		panels.set(player.id, {
 			root,
+			art: root.querySelector('.player-art'),
+			credit: root.querySelector('.player-credit'),
+			artKey: '',
 			life: root.querySelector('.life'),
 			lifeChange: new LifeChangeIndicator(root.querySelector('.life-change')),
 			damageAmounts,
@@ -97,7 +101,35 @@ function buildPanels(game) {
 	}));
 }
 
+/** L'image n'est redemandée que si l'illustration change : les mises à jour de PV n'y touchent pas. */
+function updateArt(panel, background) {
+	const key = background ? JSON.stringify(background) : '';
+	if (key === panel.artKey) {
+		return;
+	}
+	panel.artKey = key;
+	panel.root.classList.remove('has-art');
+	panel.art.style.backgroundImage = '';
+	panel.credit.textContent = '';
+	if (!background) {
+		return;
+	}
+	const url = artUrl(background);
+	panel.art.style.backgroundImage = `url("${url}")`;
+	panel.art.style.backgroundPosition = `${background.positionX}% ${background.positionY}%`;
+	// Sans l'image (cache vidé…), ni panneaux sombres ni crédit : la zone garde son fond par défaut
+	const probe = new Image();
+	probe.onload = () => {
+		if (panel.artKey === key) {
+			panel.credit.textContent = artCreditText(background);
+			panel.root.classList.add('has-art');
+		}
+	};
+	probe.src = url;
+}
+
 function updatePanel(panel, player) {
+	updateArt(panel, player.background);
 	panel.root.classList.toggle('eliminated', player.eliminated);
 	panel.life.textContent = String(player.life);
 	panel.lifeChange.update(player.life);

@@ -98,7 +98,7 @@ public final class ScryfallCardMapper {
 		}
 		return Optional.of(new CardIllustrations.Illustration(text(print, "id"), text(print, "lang"),
 				text(print, "set_name"), text(print, "collector_number"), text(print, "released_at"),
-				thumbnailUrl(print), images));
+				thumbnailUrl(print), images, arts(print)));
 	}
 
 	/** Nom anglais et nom français d'une carte trouvée par une recherche en français, pour les suggestions. */
@@ -161,6 +161,37 @@ public final class ScryfallCardMapper {
 			}
 		}
 		return images;
+	}
+
+	/**
+	 * Illustrations seules (art_crop). Même découpage que les images : une seule pour une carte à image
+	 * unique, une par face pour une carte double face. Aucune si l'image de l'impression est provisoire.
+	 * L'artiste est celui de la face, ou à défaut celui de la carte ; jamais déduit d'ailleurs.
+	 */
+	private static List<CardIllustrations.Art> arts(JsonNode print) {
+		List<CardIllustrations.Art> arts = new ArrayList<>();
+		if (!REAL_IMAGE_STATUSES.contains(print.path("image_status").asString(""))) {
+			return arts;
+		}
+		String rootArt = artCrop(print.get("image_uris"));
+		if (rootArt != null) {
+			arts.add(new CardIllustrations.Art(0, text(print, "name"), text(print, "artist"), rootArt));
+			return arts;
+		}
+		List<JsonNode> faces = faces(print);
+		for (int index = 0; index < faces.size(); index++) {
+			JsonNode face = faces.get(index);
+			String faceArt = artCrop(face.get("image_uris"));
+			if (faceArt != null) {
+				String artist = text(face, "artist") != null ? text(face, "artist") : text(print, "artist");
+				arts.add(new CardIllustrations.Art(index, text(face, "name"), artist, faceArt));
+			}
+		}
+		return arts;
+	}
+
+	private static String artCrop(JsonNode imageUris) {
+		return imageUris == null ? null : text(imageUris, "art_crop");
 	}
 
 	/** Les cartes double face portent l'illustration sur chaque face : on prend celle du recto. */

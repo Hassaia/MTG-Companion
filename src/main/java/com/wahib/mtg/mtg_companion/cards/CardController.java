@@ -42,15 +42,24 @@ public class CardController {
 	 * @param setName         édition, absente pour la liste de secours hors connexion
 	 * @param collectorNumber numéro de collection dans l'édition
 	 * @param thumbnail       vignette servie par ce serveur
+	 * @param hasArt          vrai si l'impression a une illustration seule utilisable comme fond de zone
 	 */
 	public record IllustrationView(String printId, String lang, String setName, String collectorNumber,
-			String thumbnail) {
+			String thumbnail, boolean hasArt) {
+	}
+
+	/** @param image illustration seule, servie par ce serveur depuis son cache */
+	public record ArtView(int face, String faceName, String artist, String image) {
+	}
+
+	public record ArtsResponse(String name, String printId, List<ArtView> arts) {
 	}
 
 	public record ErrorResponse(String message) {
 	}
 
 	private static final String THUMBNAIL_URL_PREFIX = "/api/cards/thumbnails/";
+	private static final String ART_URL_PREFIX = "/api/cards/arts/";
 
 	private final CardService cardService;
 	private final CardDisplayService displayService;
@@ -81,10 +90,39 @@ public class CardController {
 							|| cache.thumbnailPath(illustration.printId()).isPresent();
 					return new IllustrationView(illustration.printId(), illustration.lang(), illustration.setName(),
 							illustration.collectorNumber(),
-							hasThumbnail ? THUMBNAIL_URL_PREFIX + illustration.printId() + ".jpg" : null);
+							hasThumbnail ? THUMBNAIL_URL_PREFIX + illustration.printId() + ".jpg" : null,
+								illustration.hasArt());
 				})
 				.toList();
 		return ResponseEntity.ok(new IllustrationsResponse(illustrations.name(), views));
+	}
+
+	/**
+	 * Illustrations seules d'une impression, pour le fond d'une zone de joueur. Elles sont téléchargées
+	 * dans le cache ici, avant que le choix soit envoyé à la table.
+	 */
+	@GetMapping("/arts")
+	public ResponseEntity<ArtsResponse> arts(@RequestParam(name = "name", defaultValue = "") String name,
+			@RequestParam(name = "printId", required = false) String printId) {
+		if (name.isBlank() || (printId != null && !CardCache.isValidPrintId(printId))) {
+			return ResponseEntity.badRequest().build();
+		}
+		return cardService.artworks(name.strip(), printId)
+				.map(found -> {
+					List<ArtView> arts = found.print().arts().stream()
+							.map(art -> new ArtView(art.face(), art.faceName(), art.artist(),
+									ART_URL_PREFIX + CardCache.artFileName(found.print().printId(), art.face())))
+							.toList();
+					return ResponseEntity.ok(new ArtsResponse(found.cardName(), found.print().printId(), arts));
+				})
+				.orElseGet(() -> ResponseEntity.notFound().build());
+	}
+
+	@GetMapping("/arts/{fileName}")
+	public ResponseEntity<Resource> art(@PathVariable String fileName) {
+		return cache.artPath(fileName)
+				.map(CardController::imageResponse)
+				.orElseGet(() -> ResponseEntity.notFound().build());
 	}
 
 	@PostMapping("/show")

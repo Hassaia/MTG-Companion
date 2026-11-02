@@ -35,6 +35,8 @@ class GameWebSocketIntegrationTest {
 	@DynamicPropertySource
 	static void stateFile(DynamicPropertyRegistry registry) {
 		registry.add("mtg.state-file", () -> stateDirectory.resolve("state.json").toString());
+		registry.add("mtg.player-art-file", () -> stateDirectory.resolve("player-art.json").toString());
+		registry.add("mtg.user-images-dir", () -> stateDirectory.resolve("user-images").toString());
 	}
 
 	@Value("${local.server.port}")

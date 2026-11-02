@@ -170,4 +170,60 @@ class ScryfallCardMapperTest {
 				new CardSuggestions.LocalizedName("Invasion of Tarkir // Defiant Thundermaw",
 						"Invasion de Tarkir // Foudregueule provocateur"));
 	}
+
+	@Test
+	void illustrationCarriesItsArtCropAndArtist() {
+		JsonNode print = ScryfallFixtures.data("arts-lightning-bolt.json").getFirst();
+
+		CardIllustrations.Illustration illustration = ScryfallCardMapper.illustration(print).orElseThrow();
+
+		assertThat(illustration.arts()).hasSize(1);
+		CardIllustrations.Art art = illustration.arts().getFirst();
+		assertThat(art.face()).isZero();
+		assertThat(art.artist()).isEqualTo(print.get("artist").asString());
+		assertThat(art.sourceUrl()).contains("/art_crop/");
+		assertThat(illustration.hasArt()).isTrue();
+	}
+
+	@Test
+	void doubleFacedPrintHasOneArtPerFaceWithTheArtistOfEachFace() {
+		JsonNode print = ScryfallFixtures.JSON.readTree("""
+				{"id":"1bcae0cc-ff55-43e1-bbf7-063a24339712","name":"Delver // Insectile","lang":"en",
+				 "image_status":"highres_scan","artist":"Florey & Scott Okumura",
+				 "card_faces":[
+				  {"name":"Delver","artist":"Florey","image_uris":{"large":"https://x/large/0.jpg","art_crop":"https://x/art_crop/0.jpg"}},
+				  {"name":"Insectile","image_uris":{"large":"https://x/large/1.jpg","art_crop":"https://x/art_crop/1.jpg"}}]}""");
+
+		List<CardIllustrations.Art> arts = ScryfallCardMapper.illustration(print).orElseThrow().arts();
+
+		assertThat(arts).extracting(CardIllustrations.Art::face).containsExactly(0, 1);
+		assertThat(arts).extracting(CardIllustrations.Art::faceName).containsExactly("Delver", "Insectile");
+		// La face sans artiste propre prend celui de la carte ; rien n'est inventé
+		assertThat(arts).extracting(CardIllustrations.Art::artist).containsExactly("Florey", "Florey & Scott Okumura");
+	}
+
+	@Test
+	void adventureCardHasASingleArtFromTheRoot() {
+		JsonNode print = ScryfallFixtures.JSON.readTree("""
+				{"id":"1bcae0cc-ff55-43e1-bbf7-063a24339712","name":"Bonecrusher Giant // Stomp","lang":"en",
+				 "image_status":"highres_scan","artist":"Kev Walker",
+				 "image_uris":{"large":"https://x/large/0.jpg","art_crop":"https://x/art_crop/0.jpg"},
+				 "card_faces":[{"name":"Bonecrusher Giant"},{"name":"Stomp"}]}""");
+
+		assertThat(ScryfallCardMapper.illustration(print).orElseThrow().arts())
+				.extracting(CardIllustrations.Art::face).containsExactly(0);
+	}
+
+	@Test
+	void printWithoutArtCropOrWithAPlaceholderImageHasNoArt() {
+		JsonNode withoutArtCrop = ScryfallFixtures.JSON.readTree("""
+				{"id":"1bcae0cc-ff55-43e1-bbf7-063a24339712","name":"X","lang":"en","image_status":"highres_scan",
+				 "image_uris":{"large":"https://x/large/0.jpg"}}""");
+		JsonNode placeholder = ScryfallFixtures.JSON.readTree("""
+				{"id":"1bcae0cc-ff55-43e1-bbf7-063a24339712","name":"X","lang":"en","image_status":"placeholder",
+				 "image_uris":{"large":"https://x/large/0.jpg","art_crop":"https://x/art_crop/0.jpg"}}""");
+
+		assertThat(ScryfallCardMapper.illustration(withoutArtCrop).orElseThrow().arts()).isEmpty();
+		assertThat(ScryfallCardMapper.illustration(placeholder).orElseThrow().hasArt()).isFalse();
+	}
 }

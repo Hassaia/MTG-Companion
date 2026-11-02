@@ -347,4 +347,113 @@ class GameTest {
 			assertThatThrownBy(() -> Game.restore(corrupted)).isInstanceOf(InvalidActionException.class);
 		}
 	}
+
+	@Nested
+	class Backgrounds {
+
+		private static final String PRINT_ID = "bba5ea18-4e58-42a8-b613-2178706476a6";
+
+		private GameSnapshot.Background background(int positionX) {
+			return GameSnapshot.Background.scryfall("Lightning Bolt", PRINT_ID, 1, "Taurin Clarke", positionX, 80);
+		}
+
+		@Test
+		void playersHaveNoBackgroundByDefault() {
+			assertThat(standardGame().snapshot().players()).allSatisfy(player -> assertThat(player.background()).isNull());
+		}
+
+		@Test
+		void setAndClearBackgroundOfOnePlayerOnly() {
+			Game game = standardGame();
+
+			game.setBackground(2, background(20));
+
+			assertThat(game.snapshot().players().get(0).background()).isNull();
+			assertThat(game.snapshot().players().get(1).background()).isEqualTo(background(20));
+
+			game.setBackground(2, null);
+
+			assertThat(game.snapshot().players().get(1).background()).isNull();
+		}
+
+		@Test
+		void backgroundSurvivesResetAndRestore() {
+			Game game = standardGame();
+			game.setBackground(1, background(20));
+			game.changeLife(1, -5);
+
+			game.reset();
+			Game restored = Game.restore(game.snapshot());
+
+			assertThat(game.snapshot().players().getFirst().background()).isEqualTo(background(20));
+			assertThat(restored.snapshot()).isEqualTo(game.snapshot());
+		}
+
+		@Test
+		void newGameKeepsBackgroundsOfPlayersWhoStillHaveASeat() {
+			Game previous = commanderGame(3);
+			previous.setBackground(1, background(10));
+			previous.setBackground(3, background(30));
+
+			Game fewer = new Game(new GameSettings(Format.STANDARD, 20, List.of("A", "B")));
+			fewer.keepBackgroundsOf(previous);
+			Game more = commanderGame(4);
+			more.keepBackgroundsOf(previous);
+
+			assertThat(fewer.snapshot().players()).extracting(GameSnapshot.PlayerSnapshot::background)
+					.containsExactly(background(10), null);
+			assertThat(more.snapshot().players()).extracting(GameSnapshot.PlayerSnapshot::background)
+					.containsExactly(background(10), null, background(30), null);
+		}
+
+		@Test
+		void rejectsUnknownPlayer() {
+			assertThatThrownBy(() -> standardGame().setBackground(3, background(20)))
+					.isInstanceOf(InvalidActionException.class);
+		}
+
+		@ParameterizedTest
+		@ValueSource(ints = {-1, 101})
+		void rejectsPositionOutOfRange(int position) {
+			assertThatThrownBy(() -> background(position)).isInstanceOf(InvalidActionException.class);
+		}
+
+		@Test
+		void rejectsMalformedPrintId() {
+			assertThatThrownBy(() -> GameSnapshot.Background.scryfall("Lightning Bolt", "../x", 0, null, 50, 50))
+					.isInstanceOf(InvalidActionException.class);
+		}
+
+		@Test
+		void blankArtistIsKeptAsMissing() {
+			assertThat(GameSnapshot.Background.scryfall("Lightning Bolt", PRINT_ID, 0, "  ", 50, 50).artist()).isNull();
+		}
+
+		@Test
+		void scryfallBackgroundIdentifiesItsPrintAndFace() {
+			assertThat(background(20).kind()).isEqualTo("SCRYFALL");
+			assertThat(background(20).imageId()).isEqualTo(PRINT_ID + "-1");
+		}
+
+		@Test
+		void uploadedBackgroundKeepsOnlyItsImageId() {
+			GameSnapshot.Background upload = GameSnapshot.Background.upload(PRINT_ID, 10, 90);
+
+			assertThat(upload.imageId()).isEqualTo(PRINT_ID);
+			assertThat(upload.printId()).isNull();
+			assertThat(upload.cardName()).isNull();
+			assertThat(upload.withPosition(30, 40)).isEqualTo(GameSnapshot.Background.upload(PRINT_ID, 30, 40));
+			assertThatThrownBy(() -> GameSnapshot.Background.upload("../x", 50, 50))
+					.isInstanceOf(InvalidActionException.class);
+		}
+
+		@Test
+		void backgroundSavedBeforeUploadsAndFramingsStillLoads() {
+			// Ancien format : ni type ni identifiant d'image
+			GameSnapshot.Background legacy = new GameSnapshot.Background(null, null, "Lightning Bolt", PRINT_ID, 1,
+					"Taurin Clarke", 20, 80);
+
+			assertThat(legacy).isEqualTo(background(20));
+		}
+	}
 }

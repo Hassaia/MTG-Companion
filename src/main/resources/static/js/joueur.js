@@ -1,6 +1,7 @@
 import { hideCard, initCardSearch } from './card-search.js';
 import { connectToGame } from './connection.js';
 import { LifeChangeIndicator } from './life-change.js';
+import { initZoneBackground } from './zone-background.js';
 
 /**
  * Les dégâts de commandant sont affichés « à l'envers » : chaque adversaire part d'une réserve de
@@ -247,6 +248,13 @@ changePlayerButton.addEventListener('click', () => selectPlayer(null));
 
 initCardSearch({
 	onCardSent: (label) => showToast(`« ${label} » est affichée sur la table.`, 'success'),
+});
+
+initZoneBackground({
+	getMe: () => currentGame?.players.find((player) => player.id === selectedPlayerId) ?? null,
+	getGame: () => currentGame,
+	send: sendAction,
+	notify: showToast,
 });
 
 document.getElementById('hide-card').addEventListener('click', async () => {

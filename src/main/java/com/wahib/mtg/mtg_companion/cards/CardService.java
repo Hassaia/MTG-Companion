@@ -15,6 +15,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import com.wahib.mtg.mtg_companion.cards.CardIllustrations.Art;
 import com.wahib.mtg.mtg_companion.cards.CardIllustrations.Illustration;
 import com.wahib.mtg.mtg_companion.cards.CardSuggestions.LocalizedName;
 import com.wahib.mtg.mtg_companion.cards.CardSuggestions.Suggestion;
@@ -38,6 +39,14 @@ public class CardService {
 
 	/** @param warning message à afficher au joueur quand les suggestions sont incomplètes, sinon null */
 	public record SuggestionResult(List<Suggestion> suggestions, String warning) {
+	}
+
+	/** Une impression avec le nom (anglais) de sa carte. */
+	public record PrintArt(String cardName, Illustration print) {
+	}
+
+	/** @param artist artiste tel que renseigné par Scryfall, ou null */
+	public record CachedArt(String cardName, String artist) {
 	}
 
 	private record RememberedSuggestions(List<Suggestion> suggestions, Instant expiresAt) {
@@ -107,12 +116,14 @@ public class CardService {
 	 * @throws ScryfallUnavailableException si la carte est inconnue du cache et que Scryfall est injoignable
 	 */
 	public CardIllustrations illustrations(String englishName) {
-		CardIllustrations illustrations = cache.findIllustrations(englishName).orElseGet(() -> {
+		Optional<CardIllustrations> cached = cache.findIllustrations(englishName);
+		// Une entrée écrite avant la prise en charge des illustrations seules est récupérée de nouveau
+		CardIllustrations illustrations = cached.filter(CardService::hasArtData).orElseGet(() -> {
 			try {
 				return fetchAndCache(englishName).illustrations();
 			}
 			catch (ScryfallUnavailableException e) {
-				return cache.find(englishName).map(CardService::defaultIllustrationOnly).orElseThrow(() -> e);
+				return cached.or(() -> cache.find(englishName).map(CardService::defaultIllustrationOnly)).orElseThrow(() -> e);
 			}
 		});
 		illustrations.illustrations().forEach(illustration -> {
@@ -151,6 +162,61 @@ public class CardService {
 		}
 		downloadMissingImages(card);
 		return card;
+	}
+
+	/**
+	 * Illustration seule d'une impression, prête à servir : téléchargée dans le cache si elle n'y est pas.
+	 *
+	 * @param printId impression choisie, ou null pour la première illustration qui en a une
+	 * @return vide si l'impression est inconnue ou n'a aucune illustration seule
+	 * @throws CardNotFoundException        si aucune carte ne porte ce nom
+	 * @throws ScryfallUnavailableException si ce qui manque au cache ne peut pas être récupéré
+	 */
+	public Optional<PrintArt> artworks(String englishName, String printId) {
+		CardIllustrations all = illustrations(englishName);
+		List<Illustration> known = all.illustrations();
+		Optional<Illustration> print = printId == null
+				? known.stream().filter(Illustration::hasArt).findFirst()
+				: known.stream().filter(illustration -> illustration.printId().equals(printId)).findFirst()
+						// Impression trouvée par édition et numéro, ou enregistrée avant les illustrations seules
+						.or(() -> cache.findPrint(englishName, printId).filter(found -> found.arts() != null))
+						.or(() -> fetchPrint(englishName, printId));
+		print = print.filter(Illustration::hasArt);
+		if (print.isEmpty()) {
+			return Optional.empty();
+		}
+		for (Art art : print.get().arts()) {
+			String fileName = CardCache.artFileName(print.get().printId(), art.face());
+			if (cache.artPath(fileName).isPresent()) {
+				continue;
+			}
+			try {
+				cache.saveArt(fileName, scryfall.downloadImage(art.sourceUrl()));
+			}
+			catch (IOException e) {
+				throw new ScryfallUnavailableException("Impossible d'enregistrer l'illustration sur le disque.", e);
+			}
+		}
+		return Optional.of(new PrintArt(all.name(), print.get()));
+	}
+
+	/**
+	 * Illustration déjà en cache, sans aucun appel réseau : sert à vérifier un choix reçu d'un téléphone.
+	 *
+	 * @return vide si cette face de cette impression n'est pas en cache
+	 */
+	public Optional<CachedArt> cachedArt(String englishName, String printId, int face) {
+		if (englishName == null || !CardCache.isValidPrintId(printId)) {
+			return Optional.empty();
+		}
+		return cache.findIllustrations(englishName)
+				.flatMap(found -> found.illustrations().stream()
+						.filter(illustration -> illustration.printId().equals(printId)).findFirst()
+						.map(illustration -> new PrintArt(found.name(), illustration)))
+				.or(() -> cache.findPrint(englishName, printId).map(print -> new PrintArt(englishName, print)))
+				.filter(found -> found.print().arts() != null && cache.artPath(CardCache.artFileName(printId, face)).isPresent())
+				.flatMap(found -> found.print().arts().stream().filter(art -> art.face() == face).findFirst()
+						.map(art -> new CachedArt(found.cardName(), art.artist())));
 	}
 
 	/** Vignette d'une impression proposée au téléphone, téléchargée et mise en cache au premier affichage. */
@@ -248,6 +314,10 @@ public class CardService {
 	}
 
 	/** Liste de secours, sans connexion : l'illustration de la carte en cache, dont l'impression est dans le nom d'image. */
+	private static boolean hasArtData(CardIllustrations illustrations) {
+		return illustrations.illustrations().stream().allMatch(illustration -> illustration.arts() != null);
+	}
+
 	private static CardIllustrations defaultIllustrationOnly(Card card) {
 		if (card.images().isEmpty()) {
 			return new CardIllustrations(card.name(), List.of());

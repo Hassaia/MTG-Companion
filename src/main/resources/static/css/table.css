@@ -64,6 +64,140 @@ body {
 	transition: opacity 0.3s, filter 0.3s;
 }
 
+/*
+ * Illustration de la zone (art_crop de Scryfall), affichée telle quelle sous le contenu : proportions
+ * respectées (cover), jamais assombrie. Avec une illustration, nom, PV, dégâts de commandant et crédit
+ * forment un bloc compact semi-transparent, ancré dans un coin « intérieur » de la zone (côté du centre
+ * de la table) pour laisser libre le centre de l'illustration. Sans illustration, le bloc n'existe pas
+ * pour la mise en page (display: contents) : la zone est disposée comme avant.
+ */
+.player {
+	--art-panel: rgb(10 11 14 / 0.72);
+	--info-inset: 1.5cqmin;
+}
+
+.player-art {
+	position: absolute;
+	inset: 0;
+	background-repeat: no-repeat;
+	background-size: cover;
+}
+
+.player-info {
+	display: contents;
+}
+
+.player.has-art .player-info {
+	position: absolute;
+	z-index: 1;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 0.6cqmin;
+	box-sizing: border-box;
+	max-width: 62cqw;
+	padding: 1.5cqmin 3cqmin;
+	border-radius: 2.5cqmin;
+	background: var(--art-panel);
+}
+
+/* Coin intérieur : 2 joueurs, un de chaque côté ; 4 joueurs, face au centre de la grille ; 3 joueurs, bas-centre */
+.table[data-count="2"] .player.has-art:nth-child(1) .player-info,
+.table[data-count="4"] .player.has-art:nth-child(1) .player-info {
+	right: var(--info-inset);
+	bottom: var(--info-inset);
+}
+
+.table[data-count="2"] .player.has-art:nth-child(2) .player-info,
+.table[data-count="4"] .player.has-art:nth-child(2) .player-info {
+	bottom: var(--info-inset);
+	left: var(--info-inset);
+}
+
+.table[data-count="4"] .player.has-art:nth-child(3) .player-info {
+	top: var(--info-inset);
+	right: var(--info-inset);
+}
+
+.table[data-count="4"] .player.has-art:nth-child(4) .player-info {
+	top: var(--info-inset);
+	left: var(--info-inset);
+}
+
+.table[data-count="3"] .player.has-art .player-info {
+	bottom: var(--info-inset);
+	left: 50%;
+	max-width: calc(100% - 2 * var(--info-inset));
+	transform: translateX(-50%);
+}
+
+@media (orientation: portrait) {
+	.table[data-count="2"] .player.has-art .player-info {
+		right: auto;
+		bottom: var(--info-inset);
+		left: 50%;
+		transform: translateX(-50%);
+	}
+}
+
+/* Contenu réduit pour rester compact */
+.player.has-art .player-name {
+	font-size: 3vmin;
+	font-size: 7cqmin;
+}
+
+.player.has-art .life,
+.table[data-format="COMMANDER"] .player.has-art .life {
+	font-size: 10vmin;
+	font-size: 22cqmin;
+}
+
+.player.has-art .life-change {
+	font-size: 3.5vmin;
+	font-size: 8cqmin;
+}
+
+/* Le bloc touche le bord droit de la zone : la variation s'affiche du côté du centre */
+.table[data-count="2"] .player.has-art:nth-child(1) .life-change,
+.table[data-count="4"] .player.has-art:nth-child(odd) .life-change {
+	right: 100%;
+	left: auto;
+	margin-right: 2cqmin;
+	margin-left: 0;
+}
+
+.player.has-art .eliminated-label {
+	font-size: 2vmin;
+	font-size: 5cqmin;
+}
+
+.player.has-art .commander-damage {
+	font-size: 2vmin;
+	font-size: 5cqmin;
+}
+
+.player-name,
+.life-area,
+.eliminated-label,
+.commander-damage {
+	position: relative;
+	z-index: 1;
+}
+
+.player-credit {
+	max-width: 100%;
+	margin: 0;
+	color: var(--text-muted);
+	font-size: 1.2vmin;
+	font-size: 3cqmin;
+	line-height: 1.25;
+	text-align: center;
+}
+
+.player-credit:empty {
+	display: none;
+}
+
 .player-name {
 	max-width: 100%;
 	overflow: hidden;

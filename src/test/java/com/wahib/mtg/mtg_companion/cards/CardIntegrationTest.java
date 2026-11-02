@@ -67,6 +67,8 @@ class CardIntegrationTest {
 		registry.add("mtg.scryfall.base-url", scryfall::baseUrl);
 		registry.add("mtg.card-cache-dir", () -> directory.resolve("card-cache").toString());
 		registry.add("mtg.state-file", () -> directory.resolve("state.json").toString());
+		registry.add("mtg.player-art-file", () -> directory.resolve("player-art.json").toString());
+		registry.add("mtg.user-images-dir", () -> directory.resolve("user-images").toString());
 		registry.add("mtg.card-display-duration", () -> "2s");
 	}
 
@@ -303,6 +305,66 @@ class CardIntegrationTest {
 		assertThat(getBytes("/api/cards/images/..%2Fstate.json").statusCode()).isEqualTo(400);
 		// Un nom qui atteint le contrôleur sans respecter le format attendu n'est jamais lu
 		assertThat(getBytes("/api/cards/images/state.json").statusCode()).isEqualTo(404);
+	}
+
+	@Test
+	void artworkIsCachedOnceServedAndBecomesThePlayerBackground() throws Exception {
+		String artist = ScryfallFixtures.data("arts-lightning-bolt.json").stream()
+				.filter(print -> BOLT_ENGLISH_ONLY_PRINT.equals(print.get("id").asString()))
+				.findFirst().orElseThrow().get("artist").asString();
+
+		JsonNode arts = json(get("/api/cards/arts?name=Lightning%20Bolt&printId=" + BOLT_ENGLISH_ONLY_PRINT));
+
+		assertThat(arts.get("printId").asString()).isEqualTo(BOLT_ENGLISH_ONLY_PRINT);
+		assertThat(arts.get("arts").get(0).get("artist").asString()).isEqualTo(artist);
+		String imagePath = arts.get("arts").get(0).get("image").asString();
+		assertThat(imagePath).isEqualTo("/api/cards/arts/" + BOLT_ENGLISH_ONLY_PRINT + "-0.jpg");
+		HttpResponse<byte[]> image = getBytes(imagePath);
+		assertThat(image.statusCode()).isEqualTo(200);
+		assertThat(image.body()).isEqualTo(FakeScryfallServer.IMAGE_BYTES);
+
+		// Une deuxième demande (réglage de la position, rafraîchissement…) ne retélécharge rien
+		long artRequests = scryfall.requests().stream().filter(request -> request.path().contains("/art_crop/")).count();
+		assertThat(artRequests).isEqualTo(1);
+		get("/api/cards/arts?name=Lightning%20Bolt&printId=" + BOLT_ENGLISH_ONLY_PRINT);
+		assertThat(scryfall.requests().stream().filter(request -> request.path().contains("/art_crop/")).count())
+				.isEqualTo(artRequests);
+
+		table.session.sendMessage(new TextMessage("""
+				{"type":"SET_PLAYER_BACKGROUND","player":1,"cardName":"Lightning Bolt","printId":"%s","face":0,"framings":{"4":{"x":20,"y":80}}}"""
+				.formatted(BOLT_ENGLISH_ONLY_PRINT)));
+
+		JsonNode background = table.next().get("game").get("players").get(0).get("background");
+		assertThat(background.get("printId").asString()).isEqualTo(BOLT_ENGLISH_ONLY_PRINT);
+		assertThat(background.get("artist").asString()).isEqualTo(artist);
+		assertThat(background.get("positionX").asInt()).isEqualTo(20);
+		assertThat(background.get("positionY").asInt()).isEqualTo(80);
+
+		// Un nouveau client reçoit le fond dès sa connexion
+		TableClient late = new TableClient();
+		late.session = new StandardWebSocketClient().execute(late, "ws://localhost:" + port + "/ws")
+				.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+		assertThat(late.next().get("game").get("players").get(0).get("background").get("printId").asString())
+				.isEqualTo(BOLT_ENGLISH_ONLY_PRINT);
+		late.session.close();
+
+		table.session.sendMessage(new TextMessage("{\"type\":\"CLEAR_PLAYER_BACKGROUND\",\"player\":1}"));
+		assertThat(table.next().get("game").get("players").get(0).get("background").isNull()).isTrue();
+	}
+
+	@Test
+	void backgroundOfAnArtNotInTheCacheIsRejected() throws Exception {
+		table.session.sendMessage(new TextMessage("""
+				{"type":"SET_PLAYER_BACKGROUND","player":1,"cardName":"Lightning Bolt","printId":"00000000-0000-0000-0000-000000000000","face":0}"""));
+
+		assertThat(table.next().get("type").asString()).isEqualTo("ERROR");
+	}
+
+	@Test
+	void invalidArtRequestsAreRejected() throws Exception {
+		assertThat(get("/api/cards/arts?name=Lightning%20Bolt&printId=..x").statusCode()).isEqualTo(400);
+		assertThat(get("/api/cards/arts?name=").statusCode()).isEqualTo(400);
+		assertThat(getBytes("/api/cards/arts/state.json").statusCode()).isEqualTo(404);
 	}
 
 	private HttpResponse<String> get(String path) throws Exception {

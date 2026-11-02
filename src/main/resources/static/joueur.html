@@ -43,6 +43,7 @@
 		</section>
 
 		<button type="button" id="open-card-search" class="open-card-search">Montrer une carte sur la table</button>
+		<button type="button" id="open-zone-background" class="open-card-search">Illustration de ma zone</button>
 
 		<div id="life-buttons" class="life-buttons">
 			<button type="button" class="life-button minus" data-delta="-5" aria-label="Retirer 5 PV">−5</button>
@@ -71,6 +72,55 @@
 		<section id="card-illustrations" class="card-illustrations" hidden>
 			<h3 id="card-illustrations-title" class="card-history-title"></h3>
 			<ul id="card-illustration-grid" class="illustration-grid"></ul>
+		</section>
+	</section>
+
+	<section id="zone-background" class="card-search zone-background" role="dialog" aria-modal="true" aria-labelledby="zone-background-title" hidden>
+		<header class="card-search-header">
+			<h2 id="zone-background-title">Illustration de ma zone</h2>
+			<button type="button" id="close-zone-background" class="change-player">Retour</button>
+		</header>
+		<div class="zone-tabs" role="tablist" aria-label="Source de l'image">
+			<button type="button" id="zone-tab-scryfall" class="zone-tab" role="tab" data-tab="scryfall" aria-selected="true">Scryfall</button>
+			<button type="button" id="zone-tab-library" class="zone-tab" role="tab" data-tab="library" aria-selected="false">Mes images</button>
+		</div>
+		<p id="zone-background-status" class="card-search-status" role="status"></p>
+
+		<section id="zone-pane-scryfall" class="zone-pane">
+			<button type="button" id="zone-search" class="zone-button">Rechercher une carte</button>
+		</section>
+		<section id="zone-pane-library" class="zone-pane" hidden>
+			<label class="zone-button zone-import">Importer une image
+				<input type="file" id="zone-import" accept="image/jpeg,image/png,image/webp" hidden>
+			</label>
+			<p class="zone-layout-hint">JPEG, PNG ou WebP, 15 Mo maximum. Partagée avec tous les joueurs, à la résolution d'origine.</p>
+			<ul id="zone-library" class="zone-library"></ul>
+		</section>
+
+		<section id="zone-editor" class="zone-editor" hidden>
+			<div id="zone-preview" class="zone-preview" aria-hidden="true">
+				<div id="zone-preview-info" class="zone-preview-info">
+					<div><span id="zone-preview-name"></span> <strong id="zone-preview-life"></strong></div>
+					<p id="zone-preview-credit" class="zone-preview-credit"></p>
+				</div>
+			</div>
+			<div id="zone-layouts" class="zone-layouts" role="group" aria-label="Disposition à régler">
+				<button type="button" class="zone-button" data-layout="2">2 joueurs</button>
+				<button type="button" class="zone-button" data-layout="3">3 joueurs</button>
+				<button type="button" class="zone-button" data-layout="4">4 joueurs</button>
+			</div>
+			<p id="zone-layout-hint" class="zone-layout-hint"></p>
+			<div id="zone-faces" class="zone-faces" role="group" aria-label="Face de la carte" hidden></div>
+			<label class="zone-slider">Position horizontale
+				<input type="range" id="zone-x" min="0" max="100" value="50">
+			</label>
+			<label class="zone-slider">Position verticale
+				<input type="range" id="zone-y" min="0" max="100" value="50">
+			</label>
+			<div class="zone-actions">
+				<button type="button" id="zone-apply" class="zone-button primary">Appliquer</button>
+				<button type="button" id="zone-clear" class="zone-button danger">Retirer l'illustration</button>
+			</div>
 		</section>
 	</section>
 

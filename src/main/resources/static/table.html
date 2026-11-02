@@ -25,13 +25,17 @@
 
 	<template id="player-template">
 		<section class="player">
-			<header class="player-name"></header>
-			<div class="life-area">
-				<span class="life"></span>
-				<span class="life-change" aria-hidden="true"></span>
+			<div class="player-art" aria-hidden="true"></div>
+			<div class="player-info">
+				<header class="player-name"></header>
+				<div class="life-area">
+					<span class="life"></span>
+					<span class="life-change" aria-hidden="true"></span>
+				</div>
+				<p class="eliminated-label">Éliminé</p>
+				<ul class="commander-damage"></ul>
+				<p class="player-credit"></p>
 			</div>
-			<p class="eliminated-label">Éliminé</p>
-			<ul class="commander-damage"></ul>
 		</section>
 	</template>
 </body>
