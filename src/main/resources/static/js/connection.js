@@ -10,11 +10,20 @@ const FRESH_CONNECTION_AFTER_HIDDEN_MS = 3000;
 
 /**
  * @param {object} handlers
- * @param {(message: object) => void} handlers.onState  reçoit chaque message STATE
- * @param {(text: string) => void} [handlers.onError]   reçoit le texte des messages ERROR
+ * @param {(message: object) => void} handlers.onState        reçoit chaque message STATE
+ * @param {(text: string) => void} [handlers.onError]         reçoit le texte des messages ERROR
+ * @param {() => void} [handlers.onOpen]                      à chaque (re)connexion, avant l'état complet
+ * @param {(message: object) => void} [handlers.onCardShown]  carte affichée sur la table (CARD_SHOWN)
+ * @param {() => void} [handlers.onCardHidden]                carte fermée (CARD_HIDDEN)
  * @returns {{ send: (message: object) => boolean }} send renvoie false si la connexion est coupée
  */
-export function connectToGame({ onState, onError = () => {} }) {
+export function connectToGame({
+	onState,
+	onError = () => {},
+	onOpen = () => {},
+	onCardShown = () => {},
+	onCardHidden = () => {},
+}) {
 	const statusElement = document.getElementById('connection-status');
 	let socket = null;
 	let failedAttempts = 0;
@@ -43,13 +52,24 @@ export function connectToGame({ onState, onError = () => {} }) {
 		current.addEventListener('open', () => {
 			failedAttempts = 0;
 			showStatus('connected', 'Connecté');
+			// Le serveur renvoie tout l'état juste après : ce qui était affiché avant la coupure est périmé
+			onOpen();
 		});
 		current.addEventListener('message', (event) => {
 			const message = JSON.parse(event.data);
-			if (message.type === 'STATE') {
-				onState(message);
-			} else if (message.type === 'ERROR') {
-				onError(message.message);
+			switch (message.type) {
+				case 'STATE':
+					onState(message);
+					break;
+				case 'ERROR':
+					onError(message.message);
+					break;
+				case 'CARD_SHOWN':
+					onCardShown(message);
+					break;
+				case 'CARD_HIDDEN':
+					onCardHidden();
+					break;
 			}
 		});
 		current.addEventListener('close', () => {

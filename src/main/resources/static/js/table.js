@@ -16,7 +16,41 @@ connectToGame({
 		document.getElementById('join-address').textContent = `${message.serverAddress}/joueur`;
 		renderGame(message.game);
 	},
+	// Après une coupure, le serveur renvoie la carte affichée s'il y en a encore une
+	onOpen: hideCard,
+	onCardShown: showCard,
+	onCardHidden: hideCard,
 });
+
+// --- Carte Magic affichée par-dessus la partie
+
+const cardOverlay = document.getElementById('card-overlay');
+
+function showCard({ card, remainingMs, durationMs }) {
+	document.getElementById('card-overlay-images').replaceChildren(...card.images.map((url, index) => {
+		const image = document.createElement('img');
+		image.src = url;
+		image.alt = card.faces[index]?.name ?? card.faces[0].name;
+		return image;
+	}));
+
+	cardOverlay.hidden = false;
+	startProgressBar(remainingMs, durationMs);
+}
+
+function hideCard() {
+	cardOverlay.hidden = true;
+}
+
+/** Barre qui se vide jusqu'à la fermeture automatique, décidée par le serveur. */
+function startProgressBar(remainingMs, durationMs) {
+	const bar = document.getElementById('card-overlay-progress-bar');
+	bar.style.transition = 'none';
+	bar.style.width = `${Math.min(100, (remainingMs / durationMs) * 100)}%`;
+	bar.getBoundingClientRect(); // force le navigateur à appliquer la largeur de départ avant l'animation
+	bar.style.transition = `width ${remainingMs}ms linear`;
+	bar.style.width = '0%';
+}
 
 function renderGame(game) {
 	const layout = JSON.stringify([game.format, game.players.map((player) => player.name)]);

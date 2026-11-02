@@ -2,7 +2,8 @@
 
 Compteur de points de vie pour Magic: The Gathering, en réseau local. Le serveur tourne sur un PC
 Windows ; un grand écran affiche la partie et chaque joueur modifie ses PV depuis son téléphone,
-connecté au même Wi-Fi. Aucun accès Internet n'est nécessaire.
+connecté au même Wi-Fi. Aucun accès Internet n'est nécessaire, sauf pour afficher une carte
+jamais vue (voir la section 5).
 
 | Page | Pour qui |
 |---|---|
@@ -71,3 +72,23 @@ et le téléphone sont bien sur le même réseau.
 
 Astuce : allonger la mise en veille automatique de l'écran du téléphone pendant la partie. Après
 une veille, la page se reconnecte d'elle-même et récupère l'état à jour.
+
+## 5. Montrer une carte sur la table
+
+Sur `/joueur`, « Montrer une carte sur la table » ouvre une recherche par nom, en français ou en
+anglais. La carte choisie s'affiche en plein écran sur `/table` (version française si elle
+existe). N'importe quel téléphone peut la fermer ; elle se ferme seule après 30 secondes
+(`mtg.card-display-duration` dans `application.properties`).
+
+Champ de recherche vide, le téléphone propose les cartes qu'il a déjà envoyées : les favoris
+(étoile ☆/★) en haut par ordre alphabétique, puis les 10 dernières cartes. Cette liste est
+propre à chaque téléphone (mémorisée dans son navigateur).
+
+Les données et images viennent de [Scryfall](https://scryfall.com). Seul le serveur les télécharge,
+jamais les navigateurs : **le PC doit avoir accès à Internet** pour une carte jamais affichée.
+
+Chaque carte affichée est gardée dans le dossier `card-cache/` (à côté de `mtg-game-state.json`) :
+elle se réaffiche ensuite instantanément, même sans Internet. Sans connexion, la recherche ne
+propose que ces cartes déjà vues. Le cache n'expire pas ; pour le vider, supprimer le dossier.
+
+Si Scryfall ne répond pas, un message l'indique sur le téléphone ; la partie continue normalement.

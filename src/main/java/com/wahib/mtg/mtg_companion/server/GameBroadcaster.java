@@ -56,6 +56,16 @@ public class GameBroadcaster {
 		send(session.getId(), toJson(new ServerMessage.Error(message)));
 	}
 
+	/** Envoie un message du serveur (record de {@link ServerMessage}) à tous les écrans connectés. */
+	public void broadcast(Object message) {
+		String json = toJson(message);
+		sessions.keySet().forEach(sessionId -> send(sessionId, json));
+	}
+
+	public void send(WebSocketSession session, Object message) {
+		send(session.getId(), toJson(message));
+	}
+
 	private String toJson(Object message) {
 		return jsonMapper.writeValueAsString(message);
 	}

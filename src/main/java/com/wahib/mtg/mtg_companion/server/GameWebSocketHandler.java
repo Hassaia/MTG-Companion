@@ -8,6 +8,7 @@ import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
+import com.wahib.mtg.mtg_companion.cards.CardDisplayService;
 import com.wahib.mtg.mtg_companion.game.InvalidActionException;
 
 import tools.jackson.core.JacksonException;
@@ -20,11 +21,14 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
 	private static final Logger log = LoggerFactory.getLogger(GameWebSocketHandler.class);
 
 	private final GameService gameService;
+	private final CardDisplayService cardDisplayService;
 	private final GameBroadcaster broadcaster;
 	private final JsonMapper jsonMapper;
 
-	public GameWebSocketHandler(GameService gameService, GameBroadcaster broadcaster, JsonMapper jsonMapper) {
+	public GameWebSocketHandler(GameService gameService, CardDisplayService cardDisplayService,
+			GameBroadcaster broadcaster, JsonMapper jsonMapper) {
 		this.gameService = gameService;
+		this.cardDisplayService = cardDisplayService;
 		this.broadcaster = broadcaster;
 		this.jsonMapper = jsonMapper;
 	}
@@ -32,6 +36,7 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
 	@Override
 	public void afterConnectionEstablished(WebSocketSession session) {
 		gameService.connect(session);
+		cardDisplayService.sendCurrentTo(session);
 	}
 
 	@Override

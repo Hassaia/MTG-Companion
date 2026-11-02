@@ -1,3 +1,4 @@
+import { hideCard, initCardSearch } from './card-search.js';
 import { connectToGame } from './connection.js';
 import { LifeChangeIndicator } from './life-change.js';
 
@@ -29,7 +30,19 @@ const connection = connectToGame({
 		render();
 	},
 	onError: showToast,
+	// Après une coupure, le serveur renvoie la carte affichée s'il y en a encore une
+	onOpen: hideCardBanner,
+	onCardShown(message) {
+		document.getElementById('card-banner-name').textContent =
+			message.card.faces.map((face) => face.name).join(' // ');
+		document.getElementById('card-banner').hidden = false;
+	},
+	onCardHidden: hideCardBanner,
 });
+
+function hideCardBanner() {
+	document.getElementById('card-banner').hidden = true;
+}
 
 // --- Mémorisation du joueur (localStorage peut être indisponible, en navigation privée par exemple)
 
@@ -190,9 +203,10 @@ function commanderPoolButton(opponentId, poolDelta, label) {
 
 let toastTimer = null;
 
-function showToast(text) {
+function showToast(text, kind = 'error') {
 	const toast = document.getElementById('toast');
 	toast.textContent = text;
+	toast.dataset.kind = kind;
 	toast.hidden = false;
 	clearTimeout(toastTimer);
 	toastTimer = setTimeout(() => {
@@ -230,3 +244,13 @@ commanderRows.addEventListener('click', (event) => {
 });
 
 changePlayerButton.addEventListener('click', () => selectPlayer(null));
+
+initCardSearch({
+	onCardSent: (label) => showToast(`« ${label} » est affichée sur la table.`, 'success'),
+});
+
+document.getElementById('hide-card').addEventListener('click', async () => {
+	if (!await hideCard()) {
+		showToast('Pas de connexion au serveur, la carte n\'a pas été fermée.');
+	}
+});

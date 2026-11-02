@@ -16,6 +16,11 @@
 		<span id="connection-status" class="connection-status">Connexion…</span>
 	</header>
 
+	<div id="card-banner" class="card-banner" role="status" hidden>
+		<span class="card-banner-text">Sur la table : <strong id="card-banner-name"></strong></span>
+		<button type="button" id="hide-card" class="card-banner-close">Fermer</button>
+	</div>
+
 	<main id="choose-screen" class="choose-screen" hidden>
 		<p class="choose-hint">Qui êtes-vous ? Ce choix est mémorisé sur ce téléphone.</p>
 		<ul id="player-choices" class="player-choices"></ul>
@@ -37,6 +42,8 @@
 			<ul id="commander-rows" class="commander-rows"></ul>
 		</section>
 
+		<button type="button" id="open-card-search" class="open-card-search">Montrer une carte sur la table</button>
+
 		<div id="life-buttons" class="life-buttons">
 			<button type="button" class="life-button minus" data-delta="-5" aria-label="Retirer 5 PV">−5</button>
 			<button type="button" class="life-button plus" data-delta="5" aria-label="Ajouter 5 PV">+5</button>
@@ -44,6 +51,24 @@
 			<button type="button" class="life-button plus" data-delta="1" aria-label="Ajouter 1 PV">+1</button>
 		</div>
 	</main>
+
+	<section id="card-search" class="card-search" role="dialog" aria-modal="true" aria-labelledby="card-search-title" hidden>
+		<header class="card-search-header">
+			<h2 id="card-search-title">Montrer une carte</h2>
+			<button type="button" id="close-card-search" class="change-player">Retour</button>
+		</header>
+		<form class="card-search-form" role="search">
+			<input type="search" id="card-search-input" class="card-search-input" placeholder="Foudre, Lightning Bolt…"
+				autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="search"
+				aria-label="Nom de la carte">
+		</form>
+		<p id="card-search-status" class="card-search-status" role="status"></p>
+		<section id="card-history" class="card-history" hidden>
+			<h3 class="card-history-title">Favoris et cartes récentes</h3>
+			<ul id="card-history-list" class="card-suggestions"></ul>
+		</section>
+		<ul id="card-suggestions" class="card-suggestions"></ul>
+	</section>
 
 	<p id="toast" class="toast" role="alert" hidden></p>
 </body>
