@@ -353,18 +353,46 @@ body {
 .card-overlay-images {
 	flex: 1 1 0;
 	min-height: 0;
-	display: flex;
-	justify-content: center;
+	display: grid;
+	grid-template-columns: repeat(var(--columns, 1), minmax(0, 1fr));
+	grid-template-rows: repeat(var(--rows, 1), minmax(0, 1fr));
 	gap: 2vmin;
 	width: 100%;
 }
 
+/* Une case par image : en mode FR + EN, une colonne par langue et une ligne par face, faces alignées */
+.card-overlay-images figure {
+	margin: 0;
+	min-width: 0;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 0.6vmin;
+}
+
+.card-overlay-images figcaption {
+	flex-shrink: 0;
+	color: var(--text-muted);
+	font-size: 2vmin;
+	font-weight: 700;
+	letter-spacing: 0.1em;
+}
+
 .card-overlay-images img {
 	display: block;
-	height: 100%;
-	min-width: 0;
-	max-width: 49vw;
+	flex: 1 1 0;
+	min-height: 0;
+	width: 100%;
 	object-fit: contain;
+}
+
+.card-overlay-warning {
+	flex-shrink: 0;
+	margin: 0;
+	color: var(--accent);
+	font-size: 2.2vmin;
+	text-align: center;
 }
 
 .card-overlay-progress {

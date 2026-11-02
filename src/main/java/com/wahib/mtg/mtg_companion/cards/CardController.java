@@ -3,6 +3,7 @@ package com.wahib.mtg.mtg_companion.cards;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
+import java.util.Set;
 
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
@@ -31,8 +32,15 @@ public class CardController {
 	public record SuggestionsResponse(List<CardSuggestions.Suggestion> suggestions, String warning) {
 	}
 
-	/** @param printId impression choisie, ou absent pour le choix automatique */
-	public record ShowCardRequest(String name, String printId) {
+	/**
+	 * @param printId impression choisie, ou absent pour le choix automatique
+	 * @param lang    {@code fr}, {@code en} ou {@code both} ; absent : {@code fr}
+	 */
+	public record ShowCardRequest(String name, String printId, String lang) {
+	}
+
+	/** @param warnings langues qui n'ont pas pu être affichées, à montrer au joueur ; vide si tout s'est bien passé */
+	public record ShowCardResponse(List<String> warnings) {
 	}
 
 	public record IllustrationsResponse(String name, List<IllustrationView> illustrations) {
@@ -60,6 +68,7 @@ public class CardController {
 
 	private static final String THUMBNAIL_URL_PREFIX = "/api/cards/thumbnails/";
 	private static final String ART_URL_PREFIX = "/api/cards/arts/";
+	private static final Set<String> SHOW_LANGUAGES = Set.of("fr", "en", "both");
 
 	private final CardService cardService;
 	private final CardDisplayService displayService;
@@ -126,13 +135,18 @@ public class CardController {
 	}
 
 	@PostMapping("/show")
-	public ResponseEntity<Void> show(@RequestBody ShowCardRequest request) {
+	public ResponseEntity<ShowCardResponse> show(@RequestBody ShowCardRequest request) {
 		boolean invalidPrintId = request.printId() != null && !CardCache.isValidPrintId(request.printId());
 		if (request.name() == null || request.name().isBlank() || invalidPrintId) {
 			return ResponseEntity.badRequest().build();
 		}
-		displayService.show(cardService.resolve(request.name().strip(), request.printId()));
-		return ResponseEntity.noContent().build();
+		String lang = request.lang() == null ? "fr" : request.lang();
+		if (!SHOW_LANGUAGES.contains(lang)) {
+			return ResponseEntity.badRequest().build();
+		}
+		CardDisplay card = cardService.resolve(request.name().strip(), request.printId(), lang);
+		displayService.show(card);
+		return ResponseEntity.ok(new ShowCardResponse(card.warnings()));
 	}
 
 	/** Vignettes pour le choix de l'illustration, téléchargées chez Scryfall au premier affichage. */

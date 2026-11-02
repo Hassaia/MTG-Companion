@@ -26,7 +26,12 @@ const historyList = document.getElementById('card-history-list');
 const illustrationSection = document.getElementById('card-illustrations');
 const illustrationGrid = document.getElementById('card-illustration-grid');
 
+const languageSelector = document.getElementById('card-language');
+const LANGUAGE_KEY = 'mtg-card-language';
+const LANGUAGES = ['fr', 'en', 'both'];
+
 let history = loadHistory();
+let language = loadLanguage();
 let debounceTimer = null;
 let pendingSuggestions = null;
 let busy = false;
@@ -36,11 +41,20 @@ let pickHandler = null;
 /** Rappel quand la recherche est refermée sans avoir choisi de carte (mode « choisir une carte »). */
 let pickCancel = null;
 
-/** @param {{ onCardSent: (label: string) => void }} callbacks */
+/** @param {{ onCardSent: (label: string, warnings: string[]) => void }} callbacks */
 export function initCardSearch(callbacks) {
 	onCardSent = callbacks.onCardSent;
 	document.getElementById('open-card-search').addEventListener('click', () => open());
 	document.getElementById('close-card-search').addEventListener('click', close);
+	languageSelector.addEventListener('click', (event) => {
+		const button = event.target.closest('button[data-lang]');
+		if (button) {
+			language = button.dataset.lang;
+			saveLanguage(language);
+			renderLanguage();
+		}
+	});
+	renderLanguage();
 
 	input.addEventListener('input', () => {
 		clearTimeout(debounceTimer);
@@ -121,6 +135,8 @@ function open(title = SEARCH_TITLE, onPick = null, onCancel = null) {
 	pickHandler = onPick;
 	pickCancel = onCancel;
 	document.getElementById('card-search-title').textContent = title;
+	// La langue ne concerne que l'affichage sur la table, pas le choix d'un fond de zone
+	languageSelector.hidden = onPick !== null;
 	panel.hidden = false;
 	document.body.classList.add('modal-open');
 	input.value = '';
@@ -311,6 +327,31 @@ function printLabel({ setName, collectorNumber }) {
 	return collectorNumber ? `${setName} · n° ${collectorNumber}` : setName;
 }
 
+// --- Langue d'affichage (préférence de ce téléphone ; localStorage peut être indisponible)
+
+function loadLanguage() {
+	try {
+		const stored = localStorage.getItem(LANGUAGE_KEY);
+		return LANGUAGES.includes(stored) ? stored : 'fr';
+	} catch {
+		return 'fr';
+	}
+}
+
+function saveLanguage(value) {
+	try {
+		localStorage.setItem(LANGUAGE_KEY, value);
+	} catch {
+		// Non mémorisé : le choix reste valable jusqu'au rechargement de la page
+	}
+}
+
+function renderLanguage() {
+	languageSelector.querySelectorAll('button[data-lang]').forEach((button) => {
+		button.setAttribute('aria-checked', String(button.dataset.lang === language));
+	});
+}
+
 // --- Envoi à la table
 
 async function sendAndRemember(card) {
@@ -321,11 +362,12 @@ async function sendAndRemember(card) {
 		handler(card);
 		return;
 	}
-	if (await sendCard(card)) {
+	const sent = await sendCard(card);
+	if (sent) {
 		history = recordShown(history, card);
 		saveHistory(history);
 		close();
-		onCardSent(card.label);
+		onCardSent(card.label, sent.warnings);
 	}
 }
 
@@ -340,10 +382,11 @@ async function sendCard({ name, label, printId }) {
 		const response = await fetch('/api/cards/show', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify(printId ? { name, printId } : { name }),
+			body: JSON.stringify(printId ? { name, printId, lang: language } : { name, lang: language }),
 		});
 		if (response.ok) {
-			return true;
+			const body = await response.json().catch(() => null);
+			return { warnings: body?.warnings ?? [] };
 		}
 		const body = await response.json().catch(() => null);
 		showStatus(body?.message ?? `Erreur du serveur (HTTP ${response.status}).`, 'error');

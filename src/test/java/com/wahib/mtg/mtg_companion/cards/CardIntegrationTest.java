@@ -43,6 +43,7 @@ class CardIntegrationTest {
 	/** Version anglaise dont l'illustration est proposée en français dans la grille : absente de la liste. */
 	private static final String BOLT_ENGLISH_DEFAULT_PRINT = "7673784e-db4b-43a1-8d55-1bb9fc1e284f";
 	private static final String CLOUD_FR_PRINT = "bc7a51db-3a36-4387-bdd5-12c05f1cd856";
+	private static final String CLOUD_EN_PRINT = "955189c4-cfbc-47be-9681-cfffab403443";
 
 	@TempDir
 	static Path directory;
@@ -59,6 +60,10 @@ class CardIntegrationTest {
 				.stub("/cards/search", Map.of("q", "foud lang:fr"), 200, "search-fr-foud.json")
 				.stubBody("/cards/autocomplete", Map.of("q", "foud"), "{\"object\":\"catalog\",\"data\":[]}")
 				.stub("/cards/fic/168/fr", Map.of(), 200, "number-fic-168-fr.json")
+				.stub("/cards/fic/168/en", Map.of(), 200, "number-fic-168-en.json")
+				.stub("/cards/named", Map.of("exact", "Test Front // Test Back"), 200, "dfc-test-en.json")
+				.stub("/cards/tst/1/en", Map.of(), 200, "dfc-test-en.json")
+				.stub("/cards/tst/1/fr", Map.of(), 200, "dfc-test-fr.json")
 				.stub("/cards/named", Map.of("exact", "Cloud, Ex-SOLDIER"), 200, "number-fic-168-en.json")
 				.stub("/cards/" + BOLT_ENGLISH_DEFAULT_PRINT, Map.of(), 200, "named-lightning-bolt.json")
 				.stubStatus("/cards/search", Map.of("q", "foudr lang:fr"), 503)
@@ -121,16 +126,17 @@ class CardIntegrationTest {
 	void shownCardIsBroadcastWithImagesServedByThisServer() throws Exception {
 		HttpResponse<String> response = post("/api/cards/show", "{\"name\":\"Lightning Bolt\"}");
 
-		assertThat(response.statusCode()).isEqualTo(204);
+		assertThat(response.statusCode()).isEqualTo(200);
+		assertThat(json(response).get("warnings")).isEmpty();
 		JsonNode shown = table.next();
 		assertThat(shown.get("type").asString()).isEqualTo("CARD_SHOWN");
 		assertThat(shown.get("durationMs").asLong()).isEqualTo(2000);
 		JsonNode card = shown.get("card");
-		assertThat(card.get("lang").asString()).isEqualTo("fr");
-		assertThat(card.get("faces").get(0).get("name").asString()).isEqualTo("Foudre");
-		assertThat(card.get("images").get(0).asString()).isEqualTo("/api/cards/images/" + BOLT_IMAGE);
+		assertThat(card.get("variants")).hasSize(1);
+		assertThat(card.get("variants").get(0).get("lang").asString()).isEqualTo("fr");
+		assertThat(firstImage(card)).isEqualTo("/api/cards/images/" + BOLT_IMAGE);
 
-		HttpResponse<byte[]> image = getBytes(card.get("images").get(0).asString());
+		HttpResponse<byte[]> image = getBytes(firstImage(card));
 		assertThat(image.statusCode()).isEqualTo(200);
 		assertThat(image.headers().firstValue("Content-Type")).hasValue("image/jpeg");
 		assertThat(image.body()).isEqualTo(FakeScryfallServer.IMAGE_BYTES);
@@ -231,15 +237,14 @@ class CardIntegrationTest {
 	}
 
 	@Test
-	void chosenIllustrationIsShownWithTheFrenchNameKept() throws Exception {
+	void chosenIllustrationIsShownWithItsOwnImage() throws Exception {
 		get("/api/cards/illustrations?name=Lightning%20Bolt");
 
 		post("/api/cards/show", "{\"name\":\"Lightning Bolt\",\"printId\":\"" + BOLT_ENGLISH_ONLY_PRINT + "\"}");
 
 		JsonNode card = table.next().get("card");
-		assertThat(card.get("images").get(0).asString()).isEqualTo("/api/cards/images/" + BOLT_ENGLISH_ONLY_PRINT + "-0.jpg");
-		assertThat(card.get("faces").get(0).get("name").asString()).isEqualTo("Foudre");
-		assertThat(getBytes(card.get("images").get(0).asString()).statusCode()).isEqualTo(200);
+		assertThat(firstImage(card)).isEqualTo("/api/cards/images/" + BOLT_ENGLISH_ONLY_PRINT + "-0.jpg");
+		assertThat(getBytes(firstImage(card)).statusCode()).isEqualTo(200);
 	}
 
 	@Test
@@ -259,15 +264,15 @@ class CardIntegrationTest {
 		post("/api/cards/show", "{\"name\":\"Cloud, Ex-SOLDIER\",\"printId\":\"" + CLOUD_FR_PRINT + "\"}");
 
 		JsonNode card = table.next().get("card");
-		assertThat(card.get("images").get(0).asString()).isEqualTo("/api/cards/images/" + CLOUD_FR_PRINT + "-0.jpg");
-		assertThat(getBytes(card.get("images").get(0).asString()).statusCode()).isEqualTo(200);
+		assertThat(firstImage(card)).isEqualTo("/api/cards/images/" + CLOUD_FR_PRINT + "-0.jpg");
+		assertThat(getBytes(firstImage(card)).statusCode()).isEqualTo(200);
 	}
 
 	@Test
 	void printUnknownToTheCacheIsFetchedById() throws Exception {
 		post("/api/cards/show", "{\"name\":\"Lightning Bolt\",\"printId\":\"" + BOLT_ENGLISH_DEFAULT_PRINT + "\"}");
 
-		assertThat(table.next().get("card").get("images").get(0).asString())
+		assertThat(firstImage(table.next().get("card")))
 				.isEqualTo("/api/cards/images/" + BOLT_ENGLISH_DEFAULT_PRINT + "-0.jpg");
 	}
 
@@ -275,7 +280,7 @@ class CardIntegrationTest {
 	void printOfAnotherCardIsIgnored() throws Exception {
 		post("/api/cards/show", "{\"name\":\"Cloud, Ex-SOLDIER\",\"printId\":\"" + BOLT_ENGLISH_DEFAULT_PRINT + "\"}");
 
-		assertThat(table.next().get("card").get("images").get(0).asString())
+		assertThat(firstImage(table.next().get("card")))
 				.doesNotContain(BOLT_ENGLISH_DEFAULT_PRINT);
 	}
 
@@ -283,7 +288,7 @@ class CardIntegrationTest {
 	void unknownIllustrationFallsBackToTheDefaultOne() throws Exception {
 		post("/api/cards/show", "{\"name\":\"Lightning Bolt\",\"printId\":\"00000000-0000-0000-0000-000000000000\"}");
 
-		assertThat(table.next().get("card").get("images").get(0).asString())
+		assertThat(firstImage(table.next().get("card")))
 				.isEqualTo("/api/cards/images/" + BOLT_IMAGE);
 	}
 
@@ -365,6 +370,104 @@ class CardIntegrationTest {
 		assertThat(get("/api/cards/arts?name=Lightning%20Bolt&printId=..x").statusCode()).isEqualTo(400);
 		assertThat(get("/api/cards/arts?name=").statusCode()).isEqualTo(400);
 		assertThat(getBytes("/api/cards/arts/state.json").statusCode()).isEqualTo(404);
+	}
+
+	private void showCloud(String lang) throws Exception {
+		post("/api/cards/show", "{\"name\":\"Cloud, Ex-SOLDIER\",\"printId\":\"" + CLOUD_FR_PRINT + "\",\"lang\":\"" + lang + "\"}");
+	}
+
+	private static String variantImage(JsonNode card, int variant, int face) {
+		return card.get("variants").get(variant).get("images").get(face).asString();
+	}
+
+	@Test
+	void bothLanguagesAreShownSideBySideFromTheSameSetAndNumber() throws Exception {
+		get("/api/cards/suggestions?q=fic%20168");
+
+		showCloud("both");
+
+		JsonNode card = table.next().get("card");
+		assertThat(card.get("variants")).hasSize(2);
+		assertThat(card.get("variants").get(0).get("lang").asString()).isEqualTo("fr");
+		assertThat(variantImage(card, 0, 0)).isEqualTo("/api/cards/images/" + CLOUD_FR_PRINT + "-0.jpg");
+		assertThat(card.get("variants").get(1).get("lang").asString()).isEqualTo("en");
+		assertThat(variantImage(card, 1, 0)).isEqualTo("/api/cards/images/" + CLOUD_EN_PRINT + "-0.jpg");
+		assertThat(card.get("warnings")).isEmpty();
+		assertThat(getBytes(variantImage(card, 1, 0)).statusCode()).isEqualTo(200);
+	}
+
+	@Test
+	void englishOnlyIsShownFromAFrenchPrintAndSwitchingLanguagesDoesNotCallScryfallAgain() throws Exception {
+		get("/api/cards/suggestions?q=fic%20168");
+		showCloud("both");
+		table.next();
+		long lookups = scryfall.requests().stream().filter(request -> request.path().startsWith("/cards/fic/")).count();
+		long images = scryfall.requests().stream().filter(request -> request.path().startsWith("/images/")).count();
+
+		showCloud("en");
+		JsonNode english = table.next().get("card");
+		showCloud("fr");
+		JsonNode french = table.next().get("card");
+		showCloud("both");
+		JsonNode both = table.next().get("card");
+
+		assertThat(english.get("variants")).hasSize(1);
+		assertThat(variantImage(english, 0, 0)).contains(CLOUD_EN_PRINT);
+		assertThat(french.get("variants")).hasSize(1);
+		assertThat(variantImage(french, 0, 0)).contains(CLOUD_FR_PRINT);
+		assertThat(both.get("variants")).hasSize(2);
+		assertThat(scryfall.requests().stream().filter(request -> request.path().startsWith("/cards/fic/")).count())
+				.isEqualTo(lookups);
+		assertThat(scryfall.requests().stream().filter(request -> request.path().startsWith("/images/")).count())
+				.isEqualTo(images);
+	}
+
+	@Test
+	void missingLanguageInBothModeShowsTheAvailableOneWithAWarning() throws Exception {
+		get("/api/cards/illustrations?name=Lightning%20Bolt");
+
+		HttpResponse<String> response = post("/api/cards/show",
+				"{\"name\":\"Lightning Bolt\",\"printId\":\"" + BOLT_ENGLISH_ONLY_PRINT + "\",\"lang\":\"both\"}");
+
+		JsonNode card = table.next().get("card");
+		assertThat(card.get("variants")).hasSize(1);
+		assertThat(card.get("variants").get(0).get("lang").asString()).isEqualTo("en");
+		assertThat(variantImage(card, 0, 0)).contains(BOLT_ENGLISH_ONLY_PRINT);
+		assertThat(card.get("warnings").get(0).asString()).contains("française indisponible");
+		assertThat(json(response).get("warnings")).hasSize(1);
+	}
+
+	@Test
+	void missingFrenchFallsBackToTheSameEnglishPrintNeverAnotherOne() throws Exception {
+		get("/api/cards/illustrations?name=Lightning%20Bolt");
+
+		post("/api/cards/show", "{\"name\":\"Lightning Bolt\",\"printId\":\"" + BOLT_ENGLISH_ONLY_PRINT + "\",\"lang\":\"fr\"}");
+
+		JsonNode card = table.next().get("card");
+		assertThat(card.get("variants")).hasSize(1);
+		assertThat(variantImage(card, 0, 0)).contains(BOLT_ENGLISH_ONLY_PRINT);
+		assertThat(card.get("warnings").get(0).asString()).contains("française indisponible").contains("anglaise affichée");
+	}
+
+	@Test
+	void doubleFacedCardShowsBothFacesInBothLanguages() throws Exception {
+		post("/api/cards/show", "{\"name\":\"Test Front // Test Back\",\"lang\":\"both\"}");
+
+		JsonNode card = table.next().get("card");
+		assertThat(card.get("variants")).hasSize(2);
+		assertThat(card.get("variants").get(0).get("images")).hasSize(2);
+		assertThat(card.get("variants").get(1).get("images")).hasSize(2);
+		assertThat(variantImage(card, 0, 1)).isEqualTo("/api/cards/images/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb-1.jpg");
+		assertThat(variantImage(card, 1, 1)).isEqualTo("/api/cards/images/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa-1.jpg");
+	}
+
+	@Test
+	void unknownLanguageIsRejected() throws Exception {
+		assertThat(post("/api/cards/show", "{\"name\":\"Lightning Bolt\",\"lang\":\"de\"}").statusCode()).isEqualTo(400);
+	}
+
+	private static String firstImage(JsonNode card) {
+		return card.get("variants").get(0).get("images").get(0).asString();
 	}
 
 	private HttpResponse<String> get(String path) throws Exception {

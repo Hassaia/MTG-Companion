@@ -32,6 +32,7 @@ import tools.jackson.databind.json.JsonMapper;
  * card-cache/cards/&lt;empreinte du nom&gt;.json           carte avec son impression par défaut
  * card-cache/illustrations/&lt;empreinte du nom&gt;.json   illustrations distinctes de la carte
  * card-cache/prints/&lt;id impression&gt;.json             impression trouvée par édition et numéro
+ * card-cache/variants/&lt;empreinte édition/n°/langue&gt;.json  version d'une impression dans une langue
  * card-cache/images/&lt;id impression&gt;-&lt;face&gt;.jpg      grandes images, pour la table
  * card-cache/arts/&lt;id impression&gt;-&lt;face&gt;.jpg        illustrations seules, pour le fond des zones de joueur
  * card-cache/thumbnails/&lt;id impression&gt;.jpg         vignettes, pour le choix sur le téléphone
@@ -49,6 +50,7 @@ public class CardCache {
 	private final Path cardsDirectory;
 	private final Path illustrationsDirectory;
 	private final Path printsDirectory;
+	private final Path variantsDirectory;
 	private final Path imagesDirectory;
 	private final Path artsDirectory;
 	private final Path thumbnailsDirectory;
@@ -59,6 +61,7 @@ public class CardCache {
 		this.cardsDirectory = root.resolve("cards");
 		this.illustrationsDirectory = root.resolve("illustrations");
 		this.printsDirectory = root.resolve("prints");
+		this.variantsDirectory = root.resolve("variants");
 		this.imagesDirectory = root.resolve("images");
 		this.artsDirectory = root.resolve("arts");
 		this.thumbnailsDirectory = root.resolve("thumbnails");
@@ -114,6 +117,22 @@ public class CardCache {
 			throw new IllegalArgumentException("Identifiant d'impression invalide : " + print.printId());
 		}
 		write(printsDirectory.resolve(print.printId() + ".json"), new CachedPrint(cardName, print));
+	}
+
+	/** Version d'une impression dans une langue, retrouvée par édition, numéro et langue. */
+	public Optional<CardIllustrations.Illustration> findVariant(String cardName, String setCode, String collectorNumber, String lang) {
+		return read(nameFile(variantsDirectory, variantKey(setCode, collectorNumber, lang)), CachedPrint.class)
+				.filter(cached -> cached.cardName().equalsIgnoreCase(cardName))
+				.map(CachedPrint::print);
+	}
+
+	public void saveVariant(String cardName, String setCode, String collectorNumber, String lang,
+			CardIllustrations.Illustration print) throws IOException {
+		write(nameFile(variantsDirectory, variantKey(setCode, collectorNumber, lang)), new CachedPrint(cardName, print));
+	}
+
+	private static String variantKey(String setCode, String collectorNumber, String lang) {
+		return setCode + "/" + collectorNumber + "/" + lang;
 	}
 
 	/** @return la vignette si elle est en cache ; vide si absente ou si l'identifiant n'est pas valide */

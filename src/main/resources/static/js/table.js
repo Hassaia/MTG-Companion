@@ -28,12 +28,31 @@ connectToGame({
 const cardOverlay = document.getElementById('card-overlay');
 
 function showCard({ card, remainingMs, durationMs }) {
-	document.getElementById('card-overlay-images').replaceChildren(...card.images.map((url, index) => {
+	// Une langue : les faces côte à côte. Deux langues : une colonne par langue, une ligne par face
+	const bilingual = card.variants.length > 1;
+	const faceCount = Math.max(...card.variants.map((variant) => variant.images.length));
+	const container = document.getElementById('card-overlay-images');
+	container.style.setProperty('--columns', bilingual ? card.variants.length : faceCount);
+	container.style.setProperty('--rows', bilingual ? faceCount : 1);
+	container.replaceChildren(...card.variants.flatMap((variant, variantIndex) => variant.images.map((url, faceIndex) => {
 		const image = document.createElement('img');
 		image.src = url;
-		image.alt = card.faces[index]?.name ?? card.faces[0].name;
-		return image;
-	}));
+		image.alt = `${card.name} (${variant.lang.toUpperCase()})`;
+		const figure = document.createElement('figure');
+		figure.style.gridColumn = (bilingual ? variantIndex : faceIndex) + 1;
+		figure.style.gridRow = (bilingual ? faceIndex : 0) + 1;
+		if (bilingual) {
+			const caption = document.createElement('figcaption');
+			caption.textContent = variant.lang.toUpperCase();
+			figure.append(caption);
+		}
+		figure.append(image);
+		return figure;
+	})));
+
+	const warning = document.getElementById('card-overlay-warning');
+	warning.textContent = card.warnings.join(' ');
+	warning.hidden = card.warnings.length === 0;
 
 	cardOverlay.hidden = false;
 	startProgressBar(remainingMs, durationMs);

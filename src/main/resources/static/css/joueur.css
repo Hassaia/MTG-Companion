@@ -350,6 +350,34 @@ body.modal-open {
 	margin: 0;
 }
 
+/* Choix de la langue d'affichage : trois boutons de même largeur, faciles à toucher */
+.card-language {
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	gap: 6px;
+	margin-bottom: 10px;
+}
+
+.card-language[hidden] {
+	display: none;
+}
+
+.card-language button {
+	min-height: 44px;
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+	background: var(--surface-raised);
+	color: var(--text);
+	font-size: 1rem;
+	font-weight: 600;
+}
+
+.card-language button[aria-checked="true"] {
+	border-color: var(--accent);
+	background: var(--accent);
+	color: var(--accent-text);
+}
+
 /* 16 px minimum : en dessous, l'iPhone zoome sur le champ */
 .card-search-input {
 	width: 100%;
