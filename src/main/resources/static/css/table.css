@@ -1,0 +1,205 @@
+/*
+ * Grand écran, lisible à 3 mètres. Chaque panneau de joueur est un conteneur de requêtes :
+ * les tailles en cqmin suivent la taille du panneau, quels que soient l'écran et le nombre de joueurs.
+ * Les valeurs en vmin juste avant servent de repli aux navigateurs de télé anciens.
+ */
+
+html,
+body {
+	height: 100%;
+}
+
+.table-page {
+	display: flex;
+	flex-direction: column;
+	height: 100vh;
+	height: 100dvh;
+	overflow: hidden;
+}
+
+.table {
+	flex: 1;
+	min-height: 0;
+	display: grid;
+	gap: 1.2vmin;
+	padding: 1.2vmin;
+}
+
+.table[data-count="2"] {
+	grid-template-columns: repeat(2, 1fr);
+}
+
+.table[data-count="3"] {
+	grid-template-columns: repeat(3, 1fr);
+}
+
+.table[data-count="4"] {
+	grid-template-columns: repeat(2, 1fr);
+	grid-template-rows: repeat(2, 1fr);
+}
+
+@media (orientation: portrait) {
+	.table[data-count="2"],
+	.table[data-count="3"] {
+		grid-template-columns: 1fr;
+		grid-auto-rows: 1fr;
+	}
+}
+
+.player {
+	container-type: size;
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 1vmin;
+	min-width: 0;
+	min-height: 0;
+	padding: 1.5vmin;
+	overflow: hidden;
+	border-radius: var(--radius);
+	border-top: 1.2vmin solid var(--player-color);
+	background: var(--surface);
+	transition: opacity 0.3s, filter 0.3s;
+}
+
+.player-name {
+	max-width: 100%;
+	overflow: hidden;
+	font-size: 5vmin;
+	font-size: 10cqmin;
+	font-weight: 700;
+	color: var(--player-color);
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.life-area {
+	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.life {
+	font-size: 22vmin;
+	font-size: 46cqmin;
+	font-weight: 800;
+	font-variant-numeric: tabular-nums;
+	line-height: 1;
+	letter-spacing: -0.02em;
+}
+
+.table[data-format="COMMANDER"] .life {
+	font-size: 18vmin;
+	font-size: 38cqmin;
+}
+
+/* Variation récente (« -3 ») : affichée par life-change.js, voir aussi common.css */
+.life-change {
+	position: absolute;
+	left: 100%;
+	top: 0;
+	margin-left: 2cqmin;
+	font-size: 6vmin;
+	font-size: 13cqmin;
+	font-weight: 700;
+	font-variant-numeric: tabular-nums;
+	opacity: 0;
+}
+
+.eliminated-label {
+	display: none;
+	margin: 0;
+	padding: 0.3em 1em;
+	border-radius: 999px;
+	background: var(--danger);
+	color: #fff;
+	font-size: 3vmin;
+	font-size: 7cqmin;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+}
+
+.player.eliminated {
+	filter: grayscale(1);
+	opacity: 0.45;
+}
+
+.player.eliminated .life {
+	text-decoration: line-through;
+	text-decoration-thickness: 0.06em;
+}
+
+.player.eliminated .eliminated-label {
+	display: block;
+}
+
+.commander-damage {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: center;
+	gap: 1vmin;
+	max-width: 100%;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	font-size: 2.6vmin;
+	font-size: 6.5cqmin;
+}
+
+.commander-damage:empty {
+	display: none;
+}
+
+.commander-damage li {
+	display: flex;
+	align-items: baseline;
+	gap: 0.4em;
+	min-width: 0;
+	padding: 0.2em 0.6em;
+	border-left: 0.25em solid var(--player-color);
+	border-radius: 0.4em;
+	background: var(--surface-raised);
+}
+
+.commander-damage .from {
+	max-width: 7em;
+	overflow: hidden;
+	color: var(--text-muted);
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.commander-damage .amount {
+	font-weight: 800;
+	font-variant-numeric: tabular-nums;
+}
+
+.commander-damage li.none .amount {
+	color: var(--text-muted);
+}
+
+.commander-damage li.lethal {
+	background: var(--danger);
+	color: #fff;
+}
+
+.commander-damage li.lethal .from {
+	color: #fff;
+}
+
+.table-footer {
+	display: flex;
+	justify-content: space-between;
+	gap: 2vmin;
+	padding: 0.6vmin 1.6vmin 1vmin;
+	color: var(--text-muted);
+	font-size: 2vmin;
+}
+
+.table-footer .connection-status {
+	font-size: inherit;
+}

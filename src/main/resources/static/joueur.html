@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="fr">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+	<meta name="theme-color" content="#111318">
+	<title>Joueur · MTG Companion</title>
+	<link rel="stylesheet" href="/css/common.css">
+	<link rel="stylesheet" href="/css/joueur.css">
+	<script type="module" src="/js/joueur.js"></script>
+</head>
+<body class="player-page">
+	<header id="topbar" class="topbar player-topbar">
+		<h1 id="title">Choisir son joueur</h1>
+		<button type="button" id="change-player" class="change-player" hidden>Changer</button>
+		<span id="connection-status" class="connection-status">Connexion…</span>
+	</header>
+
+	<main id="choose-screen" class="choose-screen" hidden>
+		<p class="choose-hint">Qui êtes-vous ? Ce choix est mémorisé sur ce téléphone.</p>
+		<ul id="player-choices" class="player-choices"></ul>
+	</main>
+
+	<main id="play-screen" class="play-screen" hidden>
+		<ul id="opponents" class="opponents" aria-label="Adversaires"></ul>
+
+		<section id="own-life" class="own-life" aria-live="polite">
+			<div class="life-area">
+				<span id="own-life-value" class="own-life-value"></span>
+				<span class="life-change" aria-hidden="true"></span>
+			</div>
+			<p class="eliminated-label">Éliminé</p>
+		</section>
+
+		<section id="commander-section" class="commander-section" hidden>
+			<h2>Dégâts de commandant reçus</h2>
+			<ul id="commander-rows" class="commander-rows"></ul>
+		</section>
+
+		<div id="life-buttons" class="life-buttons">
+			<button type="button" class="life-button minus" data-delta="-5" aria-label="Retirer 5 PV">−5</button>
+			<button type="button" class="life-button plus" data-delta="5" aria-label="Ajouter 5 PV">+5</button>
+			<button type="button" class="life-button minus" data-delta="-1" aria-label="Retirer 1 PV">−1</button>
+			<button type="button" class="life-button plus" data-delta="1" aria-label="Ajouter 1 PV">+1</button>
+		</div>
+	</main>
+
+	<p id="toast" class="toast" role="alert" hidden></p>
+</body>
+</html>

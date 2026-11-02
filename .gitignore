@@ -1,5 +1,9 @@
 HELP.md
 target/
+
+### Sauvegarde de la partie en cours ###
+mtg-game-state.json
+mtg-game-state.json.tmp
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/

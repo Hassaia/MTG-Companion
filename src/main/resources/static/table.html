@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="fr">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Table · MTG Companion</title>
+	<link rel="stylesheet" href="/css/common.css">
+	<link rel="stylesheet" href="/css/table.css">
+	<script type="module" src="/js/table.js"></script>
+</head>
+<body class="table-page" title="Double-clic : plein écran">
+	<main id="table" class="table" aria-live="polite"></main>
+
+	<footer class="table-footer">
+		<span>Rejoindre : <strong id="join-address">…</strong></span>
+		<span id="connection-status" class="connection-status">Connexion…</span>
+	</footer>
+
+	<template id="player-template">
+		<section class="player">
+			<header class="player-name"></header>
+			<div class="life-area">
+				<span class="life"></span>
+				<span class="life-change" aria-hidden="true"></span>
+			</div>
+			<p class="eliminated-label">Éliminé</p>
+			<ul class="commander-damage"></ul>
+		</section>
+	</template>
+</body>
+</html>
