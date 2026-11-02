@@ -40,6 +40,8 @@ let onCardSent = () => {};
 let pickHandler = null;
 /** Rappel quand la recherche est refermée sans avoir choisi de carte (mode « choisir une carte »). */
 let pickCancel = null;
+/** En mode « choisir une carte » : vrai si seules les impressions avec illustration seule sont proposées (fond de zone). */
+let artOnly = true;
 
 /** @param {{ onCardSent: (label: string, warnings: string[]) => void }} callbacks */
 export function initCardSearch(callbacks) {
@@ -96,7 +98,10 @@ export function initCardSearch(callbacks) {
 		};
 		// Une suggestion par nom laisse choisir l'illustration ; une recherche par édition et numéro
 		// (« FIC 168 »), l'historique et la grille désignent déjà une impression précise
-		if (cardButton.dataset.source === 'suggestion' && !card.printId) {
+		// (sans exigence d'illustration, l'historique sans impression mémorisée passe aussi par ce choix)
+		const needsPrint = cardButton.dataset.source === 'suggestion'
+			|| (pickHandler && !artOnly && cardButton.dataset.source === 'history');
+		if (needsPrint && !card.printId) {
 			chooseIllustration(card);
 		} else {
 			sendAndRemember(card);
@@ -116,8 +121,11 @@ export function initCardSearch(callbacks) {
  * @param {string} title
  * @param {(card: { name: string, label: string, printId: string | null }) => void} onPick
  * @param {() => void} [onCancel] appelé si la recherche est refermée sans choix
+ * @param {{ artOnly?: boolean }} [options] {@code artOnly: false} : toute impression convient (pas seulement
+ *        celles qui ont une illustration seule) et le choix renvoie toujours un {@code printId}
  */
-export function openCardSearch(title, onPick, onCancel = null) {
+export function openCardSearch(title, onPick, onCancel = null, options = {}) {
+	artOnly = options.artOnly ?? true;
 	open(title, onPick, onCancel);
 }
 
@@ -132,6 +140,9 @@ export async function hideCard() {
 }
 
 function open(title = SEARCH_TITLE, onPick = null, onCancel = null) {
+	if (onPick === null) {
+		artOnly = true;
+	}
 	pickHandler = onPick;
 	pickCancel = onCancel;
 	document.getElementById('card-search-title').textContent = title;
@@ -250,7 +261,7 @@ async function chooseIllustration(card) {
 			return;
 		}
 		illustrations = (await response.json()).illustrations;
-		if (pickHandler) {
+		if (pickHandler && artOnly) {
 			illustrations = illustrations.filter((illustration) => illustration.hasArt);
 		}
 	} catch {
@@ -262,7 +273,9 @@ async function chooseIllustration(card) {
 	}
 
 	if (pickHandler && illustrations.length === 0) {
-		showStatus(`Aucune illustration utilisable pour « ${card.label} ».`, 'warning');
+		showStatus(artOnly
+			? `Aucune illustration utilisable pour « ${card.label} ».`
+			: `Aucune impression trouvée pour « ${card.label} ».`, 'warning');
 		return;
 	}
 	if (illustrations.length <= 1) {

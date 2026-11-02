@@ -1,4 +1,5 @@
 import { hideCard, initCardSearch } from './card-search.js';
+import { initRulings } from './rulings.js';
 import { connectToGame } from './connection.js';
 import { LifeChangeIndicator } from './life-change.js';
 import { initZoneBackground } from './zone-background.js';
@@ -249,6 +250,8 @@ initCardSearch({
 	onCardSent: (label, warnings) => showToast(
 		[`« ${label} » est affichée sur la table.`, ...warnings].join(' '), 'success'),
 });
+
+initRulings();
 
 initZoneBackground({
 	getMe: () => currentGame?.players.find((player) => player.id === selectedPlayerId) ?? null,

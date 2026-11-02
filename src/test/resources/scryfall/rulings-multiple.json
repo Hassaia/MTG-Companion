@@ -1,0 +1,27 @@
+{
+  "object": "list",
+  "has_more": false,
+  "data": [
+    {
+      "object": "ruling",
+      "oracle_id": "4457ed35-7c10-48c8-9776-456485fdf070",
+      "source": "wotc",
+      "published_at": "2004-10-04",
+      "comment": "You can cast this spell targeting a creature or a player."
+    },
+    {
+      "object": "ruling",
+      "oracle_id": "4457ed35-7c10-48c8-9776-456485fdf070",
+      "source": "scryfall",
+      "published_at": "2019-01-25",
+      "comment": "A deuxième ruling, ordre conservé."
+    },
+    {
+      "object": "ruling",
+      "oracle_id": "4457ed35-7c10-48c8-9776-456485fdf070",
+      "source": "wotc",
+      "published_at": "2009-10-01",
+      "comment": "Troisième ruling, plus ancien que le deuxième."
+    }
+  ]
+}

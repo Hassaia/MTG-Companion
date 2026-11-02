@@ -56,6 +56,15 @@ class ScryfallClientTest {
 	}
 
 	@Test
+	void rulingsKeepScryfallOrderAndAnUnknownPrintIsEmpty() {
+		String print = "1f93e813-516d-43c6-a2f3-4196c18620a5";
+		scryfall.stub("/cards/" + print + "/rulings", Map.of(), 200, "rulings-multiple.json");
+
+		assertThat(client.rulings(print)).hasValueSatisfying(rulings -> assertThat(rulings).hasSize(3));
+		assertThat(client.rulings("00000000-0000-0000-0000-000000000000")).isEmpty();
+	}
+
+	@Test
 	void unknownCardIsEmptyRatherThanAnError() {
 		assertThat(client.findByExactName("Carte qui n existe pas")).isEmpty();
 	}

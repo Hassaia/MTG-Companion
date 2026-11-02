@@ -7,6 +7,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
@@ -36,6 +37,7 @@ import tools.jackson.databind.json.JsonMapper;
  * card-cache/images/&lt;id impression&gt;-&lt;face&gt;.jpg      grandes images, pour la table
  * card-cache/arts/&lt;id impression&gt;-&lt;face&gt;.jpg        illustrations seules, pour le fond des zones de joueur
  * card-cache/thumbnails/&lt;id impression&gt;.jpg         vignettes, pour le choix sur le téléphone
+ * card-cache/rulings/&lt;id impression&gt;.json           rulings avec leur date de récupération (périmés après 7 jours)
  * </pre>
  */
 @Component
@@ -54,6 +56,7 @@ public class CardCache {
 	private final Path imagesDirectory;
 	private final Path artsDirectory;
 	private final Path thumbnailsDirectory;
+	private final Path rulingsDirectory;
 	private final JsonMapper jsonMapper;
 
 	public CardCache(@Value("${mtg.card-cache-dir}") Path cacheDirectory, JsonMapper jsonMapper) {
@@ -65,6 +68,7 @@ public class CardCache {
 		this.imagesDirectory = root.resolve("images");
 		this.artsDirectory = root.resolve("arts");
 		this.thumbnailsDirectory = root.resolve("thumbnails");
+		this.rulingsDirectory = root.resolve("rulings");
 		this.jsonMapper = jsonMapper;
 	}
 
@@ -133,6 +137,25 @@ public class CardCache {
 
 	private static String variantKey(String setCode, String collectorNumber, String lang) {
 		return setCode + "/" + collectorNumber + "/" + lang;
+	}
+
+	/** Rulings d'une impression avec la date de leur récupération, pour décider s'ils sont périmés. */
+	record CachedRulings(Instant fetchedAt, List<Ruling> rulings) {
+	}
+
+	/** @return les rulings en cache, même périmés ; vide si absents ou si l'identifiant n'est pas valide */
+	public Optional<CachedRulings> findRulings(String printId) {
+		if (!isValidPrintId(printId)) {
+			return Optional.empty();
+		}
+		return read(rulingsDirectory.resolve(printId + ".json"), CachedRulings.class);
+	}
+
+	public void saveRulings(String printId, CachedRulings rulings) throws IOException {
+		if (!isValidPrintId(printId)) {
+			throw new IllegalArgumentException("Identifiant d'impression invalide : " + printId);
+		}
+		write(rulingsDirectory.resolve(printId + ".json"), rulings);
 	}
 
 	/** @return la vignette si elle est en cache ; vide si absente ou si l'identifiant n'est pas valide */

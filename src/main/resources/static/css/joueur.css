@@ -277,14 +277,76 @@
 
 /* Carte Magic : bouton, bandeau « sur la table » et panneau de recherche */
 
+.quick-actions {
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	gap: 8px;
+}
+
 .open-card-search {
-	min-height: 48px;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 2px;
+	min-height: 52px;
+	padding: 4px;
 	border: 1px dashed var(--border);
 	border-radius: var(--radius);
 	background: transparent;
 	color: var(--text-muted);
+	font-size: 0.85rem;
 	font-weight: 600;
 	cursor: pointer;
+}
+
+.quick-icon {
+	font-size: 1.25rem;
+	line-height: 1;
+}
+
+/* Consultation des rulings */
+
+.rulings-card {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+
+.rulings-thumbnail {
+	width: 64px;
+	border-radius: 6px;
+}
+
+.rulings-card-name {
+	min-width: 0;
+	font-size: 1.1rem;
+}
+
+.rulings-list {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.ruling {
+	padding: 10px 12px;
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+	background: var(--surface);
+}
+
+.ruling p {
+	margin: 0 0 6px;
+	line-height: 1.4;
+}
+
+.ruling-meta {
+	color: var(--text-muted);
+	font-size: 0.8rem;
 }
 
 .card-banner {

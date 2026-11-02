@@ -63,6 +63,10 @@ public class CardController {
 	public record ArtsResponse(String name, String printId, List<ArtView> arts) {
 	}
 
+	/** @param stale vrai si Scryfall était injoignable : ces rulings viennent d'un cache périmé */
+	public record RulingsResponse(List<Ruling> rulings, boolean stale) {
+	}
+
 	public record ErrorResponse(String message) {
 	}
 
@@ -132,6 +136,16 @@ public class CardController {
 		return cache.artPath(fileName)
 				.map(CardController::imageResponse)
 				.orElseGet(() -> ResponseEntity.notFound().build());
+	}
+
+	/** Rulings d'une impression, pour la consultation sur le téléphone ; rien n'est envoyé à la table. */
+	@GetMapping("/rulings")
+	public ResponseEntity<RulingsResponse> rulings(@RequestParam(name = "printId", defaultValue = "") String printId) {
+		if (!CardCache.isValidPrintId(printId)) {
+			return ResponseEntity.badRequest().build();
+		}
+		CardService.RulingsResult result = cardService.rulings(printId);
+		return ResponseEntity.ok(new RulingsResponse(result.rulings(), result.stale()));
 	}
 
 	@PostMapping("/show")
