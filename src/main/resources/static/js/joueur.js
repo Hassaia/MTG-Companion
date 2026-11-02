@@ -1,7 +1,11 @@
 import { connectToGame } from './connection.js';
 import { LifeChangeIndicator } from './life-change.js';
 
-const LETHAL_COMMANDER_DAMAGE = 21;
+/**
+ * Les dégâts de commandant sont affichés « à l'envers » : chaque adversaire part d'une réserve de
+ * 21 PV de commandant qui descend à chaque dégât. Le serveur, lui, compte les dégâts reçus.
+ */
+const COMMANDER_POOL = 21;
 const STORAGE_KEY = 'mtg-companion.playerId';
 const TOAST_DURATION_MS = 2500;
 
@@ -123,9 +127,9 @@ function renderPlayScreen(me) {
 	ownLifeChange.update(me.life);
 
 	for (const [opponentId, { row, amount }] of commanderRowElements) {
-		const damage = me.commanderDamage[opponentId] ?? 0;
-		amount.textContent = String(damage);
-		row.classList.toggle('lethal', damage >= LETHAL_COMMANDER_DAMAGE);
+		const remaining = COMMANDER_POOL - (me.commanderDamage[opponentId] ?? 0);
+		amount.textContent = String(remaining);
+		row.classList.toggle('lethal', remaining <= 0);
 	}
 }
 
@@ -164,22 +168,23 @@ function buildCommanderRows(me) {
 		amount.className = 'amount';
 		row.append(
 			from,
-			damageButton(opponentId, -1, `Retirer 1 dégât de ${opponent.name}`),
+			commanderPoolButton(opponentId, -1, `Retirer 1 PV de commandant face à ${opponent.name}`),
 			amount,
-			damageButton(opponentId, 1, `Ajouter 1 dégât de ${opponent.name}`));
+			commanderPoolButton(opponentId, 1, `Rendre 1 PV de commandant face à ${opponent.name}`));
 
 		commanderRowElements.set(opponentId, { row, amount });
 		return row;
 	}));
 }
 
-function damageButton(opponentId, delta, label) {
+/** @param poolDelta variation de la réserve affichée : -1 sur la réserve = +1 dégât reçu */
+function commanderPoolButton(opponentId, poolDelta, label) {
 	const button = document.createElement('button');
 	button.type = 'button';
 	button.dataset.from = String(opponentId);
-	button.dataset.delta = String(delta);
+	button.dataset.damageDelta = String(-poolDelta);
 	button.setAttribute('aria-label', label);
-	button.textContent = delta > 0 ? '+1' : '−1';
+	button.textContent = poolDelta > 0 ? '+1' : '−1';
 	return button;
 }
 
@@ -219,7 +224,7 @@ commanderRows.addEventListener('click', (event) => {
 			type: 'CHANGE_COMMANDER_DAMAGE',
 			player: selectedPlayerId,
 			fromPlayer: Number(button.dataset.from),
-			delta: Number(button.dataset.delta),
+			delta: Number(button.dataset.damageDelta),
 		});
 	}
 });

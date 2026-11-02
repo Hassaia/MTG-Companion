@@ -1,7 +1,8 @@
 import { connectToGame } from './connection.js';
 import { LifeChangeIndicator } from './life-change.js';
 
-const LETHAL_COMMANDER_DAMAGE = 21;
+/** Réserve de PV de commandant par adversaire, affichée « à l'envers » (le serveur compte les dégâts reçus). */
+const COMMANDER_POOL = 21;
 
 const tableElement = document.getElementById('table');
 const playerTemplate = document.getElementById('player-template');
@@ -67,10 +68,10 @@ function updatePanel(panel, player) {
 	panel.life.textContent = String(player.life);
 	panel.lifeChange.update(player.life);
 	for (const [opponentId, { item, amount }] of panel.damageAmounts) {
-		const damage = player.commanderDamage[opponentId] ?? 0;
-		amount.textContent = String(damage);
-		item.classList.toggle('none', damage === 0);
-		item.classList.toggle('lethal', damage >= LETHAL_COMMANDER_DAMAGE);
+		const remaining = COMMANDER_POOL - (player.commanderDamage[opponentId] ?? 0);
+		amount.textContent = String(remaining);
+		item.classList.toggle('none', remaining === COMMANDER_POOL);
+		item.classList.toggle('lethal', remaining <= 0);
 	}
 }
 
