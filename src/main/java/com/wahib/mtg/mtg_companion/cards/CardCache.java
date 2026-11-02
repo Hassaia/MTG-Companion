@@ -33,6 +33,7 @@ import tools.jackson.databind.json.JsonMapper;
  * card-cache/illustrations/&lt;empreinte du nom&gt;.json   illustrations distinctes de la carte
  * card-cache/prints/&lt;id impression&gt;.json             impression trouvée par édition et numéro
  * card-cache/images/&lt;id impression&gt;-&lt;face&gt;.jpg      grandes images, pour la table
+ * card-cache/arts/&lt;id impression&gt;-&lt;face&gt;.jpg        illustrations seules, pour le fond des zones de joueur
  * card-cache/thumbnails/&lt;id impression&gt;.jpg         vignettes, pour le choix sur le téléphone
  * </pre>
  */
@@ -49,6 +50,7 @@ public class CardCache {
 	private final Path illustrationsDirectory;
 	private final Path printsDirectory;
 	private final Path imagesDirectory;
+	private final Path artsDirectory;
 	private final Path thumbnailsDirectory;
 	private final JsonMapper jsonMapper;
 
@@ -58,6 +60,7 @@ public class CardCache {
 		this.illustrationsDirectory = root.resolve("illustrations");
 		this.printsDirectory = root.resolve("prints");
 		this.imagesDirectory = root.resolve("images");
+		this.artsDirectory = root.resolve("arts");
 		this.thumbnailsDirectory = root.resolve("thumbnails");
 		this.jsonMapper = jsonMapper;
 	}
@@ -162,6 +165,27 @@ public class CardCache {
 			throw new IllegalArgumentException("Nom d'image invalide : " + fileName);
 		}
 		AtomicFiles.write(imagesDirectory.resolve(fileName), content);
+	}
+
+	/** @return l'illustration seule si elle est en cache ; vide si absente ou si le nom n'est pas valide */
+	public Optional<Path> artPath(String fileName) {
+		if (!isValidImageFileName(fileName)) {
+			return Optional.empty();
+		}
+		Path file = artsDirectory.resolve(fileName);
+		return Files.isRegularFile(file) ? Optional.of(file) : Optional.empty();
+	}
+
+	public void saveArt(String fileName, byte[] content) throws IOException {
+		if (!isValidImageFileName(fileName)) {
+			throw new IllegalArgumentException("Nom d'image invalide : " + fileName);
+		}
+		AtomicFiles.write(artsDirectory.resolve(fileName), content);
+	}
+
+	/** Nom du fichier d'une illustration seule, de la même forme que celui d'une grande image. */
+	public static String artFileName(String printId, int face) {
+		return printId + "-" + face + ".jpg";
 	}
 
 	private <T> Optional<T> read(Path file, Class<T> type) {

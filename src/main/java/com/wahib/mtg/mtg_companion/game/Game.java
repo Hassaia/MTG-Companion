@@ -37,6 +37,7 @@ public class Game {
 				throw new InvalidActionException("Sauvegarde incohérente : joueur " + saved.id() + " mal placé");
 			}
 			player.setLife(saved.life());
+			player.setBackground(saved.background());
 			for (Map.Entry<Integer, Integer> entry : saved.commanderDamage().entrySet()) {
 				int opponentId = entry.getKey();
 				game.requireCommanderDamageAllowed(player.id(), opponentId);
@@ -86,6 +87,19 @@ public class Game {
 		player.setLife(player.life() - appliedDelta);
 	}
 
+	public void setBackground(int playerId, GameSnapshot.Background background) {
+		player(playerId).setBackground(background);
+	}
+
+	/** Une nouvelle partie garde les illustrations des joueurs qui y retrouvent leur place (même numéro). */
+	public void keepBackgroundsOf(Game previous) {
+		for (Player player : players) {
+			if (player.id() <= previous.players.size()) {
+				player.setBackground(previous.player(player.id()).background());
+			}
+		}
+	}
+
 	/** Remet la partie en cours à zéro : mêmes joueurs, PV de départ, aucun dégât de commandant. */
 	public void reset() {
 		for (Player player : players) {
@@ -103,7 +117,7 @@ public class Game {
 	public GameSnapshot snapshot() {
 		List<GameSnapshot.PlayerSnapshot> playerSnapshots = players.stream()
 				.map(player -> new GameSnapshot.PlayerSnapshot(player.id(), player.name(), player.life(),
-						player.isEliminated(), player.commanderDamageReceived()))
+						player.isEliminated(), player.commanderDamageReceived(), player.background()))
 				.toList();
 		return new GameSnapshot(settings.format(), settings.startingLife(), playerSnapshots);
 	}

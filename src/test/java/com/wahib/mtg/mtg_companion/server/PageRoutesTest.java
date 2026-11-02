@@ -13,7 +13,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-		properties = "mtg.state-file=target/test-state/page-routes.json")
+		properties = { "mtg.state-file=target/test-state/page-routes.json",
+		"mtg.player-art-file=target/test-state/page-routes-art.json", "mtg.user-images-dir=target/test-state/page-routes-images" })
 class PageRoutesTest {
 
 	@Value("${local.server.port}")

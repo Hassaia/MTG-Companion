@@ -5,12 +5,16 @@
 //  - champ vide : favoris et cartes récentes de ce téléphone, chacun avec son illustration mémorisée ;
 //  - en cours de frappe : suggestions ;
 //  - suggestion choisie, si la carte a plusieurs illustrations : grille pour choisir laquelle afficher.
+//
+// La même recherche sert à choisir l'illustration du fond de sa zone (openCardSearch avec un rappel) :
+// la carte choisie est alors rendue à l'appelant au lieu d'être envoyée à la table.
 
 import { entryKey, loadHistory, orderForDisplay, recordShown, saveHistory, toggleFavorite } from './card-history.js';
 
 const DEBOUNCE_MS = 350;
 const MIN_QUERY_LENGTH = 2;
 const HINT = 'Tapez le nom d\'une carte (français ou anglais), ou son édition et son numéro : FIC 168.';
+const SEARCH_TITLE = 'Montrer une carte';
 const NO_CONNECTION = 'Pas de connexion au serveur, réessayez dans un instant.';
 
 const panel = document.getElementById('card-search');
@@ -27,11 +31,15 @@ let debounceTimer = null;
 let pendingSuggestions = null;
 let busy = false;
 let onCardSent = () => {};
+/** Rappel du mode « choisir une carte sans l'envoyer à la table », ou null. */
+let pickHandler = null;
+/** Rappel quand la recherche est refermée sans avoir choisi de carte (mode « choisir une carte »). */
+let pickCancel = null;
 
 /** @param {{ onCardSent: (label: string) => void }} callbacks */
 export function initCardSearch(callbacks) {
 	onCardSent = callbacks.onCardSent;
-	document.getElementById('open-card-search').addEventListener('click', open);
+	document.getElementById('open-card-search').addEventListener('click', () => open());
 	document.getElementById('close-card-search').addEventListener('click', close);
 
 	input.addEventListener('input', () => {
@@ -87,6 +95,18 @@ export function initCardSearch(callbacks) {
 	});
 }
 
+/**
+ * Ouvre la recherche pour choisir une carte sans l'envoyer à la table : seules les impressions qui
+ * ont une illustration seule sont proposées.
+ *
+ * @param {string} title
+ * @param {(card: { name: string, label: string, printId: string | null }) => void} onPick
+ * @param {() => void} [onCancel] appelé si la recherche est refermée sans choix
+ */
+export function openCardSearch(title, onPick, onCancel = null) {
+	open(title, onPick, onCancel);
+}
+
 /** @returns {Promise<boolean>} false si le serveur est injoignable */
 export async function hideCard() {
 	try {
@@ -97,7 +117,10 @@ export async function hideCard() {
 	}
 }
 
-function open() {
+function open(title = SEARCH_TITLE, onPick = null, onCancel = null) {
+	pickHandler = onPick;
+	pickCancel = onCancel;
+	document.getElementById('card-search-title').textContent = title;
 	panel.hidden = false;
 	document.body.classList.add('modal-open');
 	input.value = '';
@@ -112,6 +135,11 @@ function close() {
 	document.body.classList.remove('modal-open');
 	clearTimeout(debounceTimer);
 	pendingSuggestions?.abort();
+	if (pickCancel) {
+		const cancel = pickCancel;
+		pickCancel = null;
+		cancel();
+	}
 }
 
 // --- Favoris et cartes récentes
@@ -206,6 +234,9 @@ async function chooseIllustration(card) {
 			return;
 		}
 		illustrations = (await response.json()).illustrations;
+		if (pickHandler) {
+			illustrations = illustrations.filter((illustration) => illustration.hasArt);
+		}
 	} catch {
 		showStatus(NO_CONNECTION, 'error');
 		return;
@@ -214,6 +245,10 @@ async function chooseIllustration(card) {
 		panel.classList.remove('sending');
 	}
 
+	if (pickHandler && illustrations.length === 0) {
+		showStatus(`Aucune illustration utilisable pour « ${card.label} ».`, 'warning');
+		return;
+	}
 	if (illustrations.length <= 1) {
 		// Une seule illustration (ou aucune connue) : pas de choix à faire
 		const only = illustrations[0];
@@ -279,6 +314,13 @@ function printLabel({ setName, collectorNumber }) {
 // --- Envoi à la table
 
 async function sendAndRemember(card) {
+	if (pickHandler) {
+		const handler = pickHandler;
+		pickCancel = null;
+		close();
+		handler(card);
+		return;
+	}
 	if (await sendCard(card)) {
 		history = recordShown(history, card);
 		saveHistory(history);

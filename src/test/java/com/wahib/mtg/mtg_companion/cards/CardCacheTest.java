@@ -137,4 +137,23 @@ class CardCacheTest {
 		assertThat(cache().imagePath(fileName)).isEmpty();
 		assertThatThrownBy(() -> cache().saveImage(fileName, new byte[0])).isInstanceOf(IllegalArgumentException.class);
 	}
+
+	@Test
+	void savedArtIsFoundByItsFileNameOnly() throws Exception {
+		cache().saveArt(IMAGE, new byte[] {4, 5});
+
+		assertThat(cache().artPath(IMAGE)).hasValueSatisfying(path -> assertThat(path).hasBinaryContent(new byte[] {4, 5}));
+		assertThat(cache().imagePath(IMAGE)).isEmpty();
+		assertThat(cache().artPath("../state.json")).isEmpty();
+		assertThatThrownBy(() -> cache().saveArt("../x.jpg", new byte[0])).isInstanceOf(IllegalArgumentException.class);
+	}
+
+	@Test
+	void illustrationWrittenBeforeArtsExistedKeepsThemUnknown() throws Exception {
+		cache().saveIllustrations(new CardIllustrations("Lightning Bolt", List.of(
+				new CardIllustrations.Illustration("1f93e813-516d-43c6-a2f3-4196c18620a5", "fr", null, null, null, null,
+						BOLT.images()))));
+
+		assertThat(cache().findIllustrations("Lightning Bolt").orElseThrow().illustrations().getFirst().arts()).isNull();
+	}
 }
