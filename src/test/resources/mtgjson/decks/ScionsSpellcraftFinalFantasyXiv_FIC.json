@@ -1,0 +1,54 @@
+{
+ "meta": {
+  "date": "2026-11-03",
+  "version": "5.3.0"
+ },
+ "data": {
+  "code": "FIC",
+  "name": "Scions & Spellcraft (FINAL FANTASY XIV)",
+  "releaseDate": "2025-06-13",
+  "type": "Commander Deck",
+  "commander": [
+   {
+    "count": 1,
+    "name": "Y'shtola, Night's Blessed",
+    "setCode": "FIC",
+    "number": "4",
+    "layout": "normal",
+    "identifiers": {
+     "scryfallId": "dddddddd-dddd-4ddd-8ddd-ddddddddddd1"
+    },
+    "foreignData": [
+     {
+      "language": "French",
+      "name": "xxxxx"
+     }
+    ],
+    "rulings": []
+   }
+  ],
+  "mainBoard": [
+   {
+    "count": 30,
+    "name": "Swamp",
+    "setCode": "FIC",
+    "number": "311",
+    "layout": "normal",
+    "identifiers": {
+     "scryfallId": "dddddddd-dddd-4ddd-8ddd-ddddddddddd2"
+    },
+    "foreignData": [
+     {
+      "language": "French",
+      "name": "xxxxx"
+     }
+    ],
+    "rulings": []
+   }
+  ],
+  "sideBoard": [],
+  "tokens": [],
+  "planes": [],
+  "schemes": []
+ }
+}

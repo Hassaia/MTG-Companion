@@ -643,9 +643,192 @@ body.modal-open {
 
 /* Pendant une requête : une seule carte à la fois */
 .card-search.sending .card-suggestion,
+.card-search.sending .deck-card,
 .card-search.sending .illustration-choice {
 	opacity: 0.5;
 	pointer-events: none;
+}
+
+/* Section « Mon deck » : une seule ligne, discrète tant qu'aucun deck n'est choisi */
+.my-deck {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-height: 48px;
+	padding: 6px 6px 6px 12px;
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+	background: var(--surface);
+}
+
+.my-deck-label {
+	flex: none;
+	color: var(--text-muted);
+	font-size: 0.8rem;
+	font-weight: 600;
+}
+
+.my-deck-name {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	color: var(--text-muted);
+	font-weight: 600;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.my-deck.has-deck .my-deck-name {
+	color: var(--text);
+}
+
+.my-deck-button {
+	flex: none;
+	min-width: 36px;
+	min-height: 36px;
+	padding: 0 12px;
+	border: 1px solid var(--border);
+	border-radius: 10px;
+	background: var(--surface-raised);
+	color: var(--text);
+	font-size: 0.9rem;
+	font-weight: 600;
+	cursor: pointer;
+}
+
+.my-deck-clear {
+	padding: 0;
+	color: var(--text-muted);
+}
+
+/* Onglets « Decks en jeu » / « Recherche globale » */
+.card-tabs {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 6px;
+}
+
+.card-tabs button {
+	min-height: 44px;
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+	background: var(--surface-raised);
+	color: var(--text);
+	font-size: 1rem;
+	font-weight: 600;
+}
+
+.card-tabs button[aria-selected="true"] {
+	border-color: var(--accent);
+	background: var(--accent);
+	color: var(--accent-text);
+}
+
+/* L'enveloppe de la recherche globale ne change pas la mise en page du panneau */
+.global-search {
+	display: contents;
+}
+
+.deck-browser,
+.deck-view {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.deck-choice {
+	border-left: 6px solid var(--player-color, var(--border));
+}
+
+.deck-view-header {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+
+.deck-view-title {
+	flex: 1;
+	min-width: 0;
+	margin: 0;
+	overflow: hidden;
+	font-size: 1.05rem;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.deck-cards {
+	display: grid;
+	gap: 6px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.deck-card {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	width: 100%;
+	min-height: 72px;
+	padding: 4px 12px 4px 4px;
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+	background: var(--surface);
+	color: var(--text);
+	text-align: left;
+	cursor: pointer;
+}
+
+.deck-card:active {
+	background: var(--surface-raised);
+}
+
+.deck-card-thumbnail {
+	flex: none;
+	width: 46px;
+	aspect-ratio: 146 / 204;
+	overflow: hidden;
+	border-radius: 4px;
+	background: var(--surface-raised);
+}
+
+/* Emplacement animé tant que la miniature n'est pas arrivée */
+.deck-card-thumbnail:not(.loaded) {
+	background: linear-gradient(110deg, var(--surface-raised) 30%, var(--border) 50%, var(--surface-raised) 70%);
+	background-size: 200% 100%;
+	animation: thumbnail-loading 1.4s linear infinite;
+}
+
+@keyframes thumbnail-loading {
+	to {
+		background-position: -200% 0;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.deck-card-thumbnail:not(.loaded) {
+		animation: none;
+	}
+}
+
+.deck-card-thumbnail img {
+	display: block;
+	width: 100%;
+	height: 100%;
+	object-fit: contain;
+}
+
+.deck-card-name {
+	flex: 1;
+	min-width: 0;
+	font-size: 1rem;
+	font-weight: 700;
+}
+
+.deck-card-count {
+	flex: none;
+	color: var(--text-muted);
+	font-weight: 600;
 }
 
 .toast {

@@ -1,0 +1,136 @@
+{
+ "meta": {
+  "date": "2026-11-03",
+  "version": "5.3.0"
+ },
+ "data": [
+  {
+   "code": "FIC",
+   "fileName": "LimitBreakFinalFantasyVii_FIC",
+   "name": "Limit Break (FINAL FANTASY VII)",
+   "releaseDate": "2025-06-13",
+   "source": "https://example.test",
+   "type": "Commander Deck"
+  },
+  {
+   "code": "FIC",
+   "fileName": "LimitBreakCollectorSEditionFinalFantasyVii_FIC",
+   "name": "Limit Break Collector's Edition (FINAL FANTASY VII)",
+   "releaseDate": "2025-06-13",
+   "source": "https://example.test",
+   "type": "Commander Deck"
+  },
+  {
+   "code": "FIC",
+   "fileName": "CounterBlitzFinalFantasyX_FIC",
+   "name": "Counter Blitz (FINAL FANTASY X)",
+   "releaseDate": "2025-06-13",
+   "source": "https://example.test",
+   "type": "Commander Deck"
+  },
+  {
+   "code": "FIC",
+   "fileName": "CounterBlitzCollectorSEditionFinalFantasyX_FIC",
+   "name": "Counter Blitz Collector's Edition (FINAL FANTASY X)",
+   "releaseDate": "2025-06-13",
+   "source": "https://example.test",
+   "type": "Commander Deck"
+  },
+  {
+   "code": "FIC",
+   "fileName": "ScionsSpellcraftFinalFantasyXiv_FIC",
+   "name": "Scions & Spellcraft (FINAL FANTASY XIV)",
+   "releaseDate": "2025-06-13",
+   "source": "https://example.test",
+   "type": "Commander Deck"
+  },
+  {
+   "code": "FIC",
+   "fileName": "ScionsSpellcraftCollectorSEditionFinalFantasyXiv_FIC",
+   "name": "Scions & Spellcraft Collector's Edition (FINAL FANTASY XIV)",
+   "releaseDate": "2025-06-13",
+   "source": "https://example.test",
+   "type": "Commander Deck"
+  },
+  {
+   "code": "FIC",
+   "fileName": "RevivalTranceFinalFantasyVi_FIC",
+   "name": "Revival Trance (FINAL FANTASY VI)",
+   "releaseDate": "2025-06-13",
+   "source": "https://example.test",
+   "type": "Commander Deck"
+  },
+  {
+   "code": "FIC",
+   "fileName": "RevivalTranceCollectorSEditionFinalFantasyVi_FIC",
+   "name": "Revival Trance Collector's Edition (FINAL FANTASY VI)",
+   "releaseDate": "2025-06-13",
+   "source": "https://example.test",
+   "type": "Commander Deck"
+  },
+  {
+   "code": "LTC",
+   "fileName": "FoodAndFellowship_LTC",
+   "name": "Food and Fellowship",
+   "releaseDate": "2023-10-20",
+   "source": "https://example.test",
+   "type": "Commander Deck"
+  },
+  {
+   "code": "C14",
+   "fileName": "BuiltFromScratch_C14",
+   "name": "Built From Scratch",
+   "releaseDate": "2014-11-07",
+   "source": "https://example.test",
+   "type": "Commander Deck"
+  },
+  {
+   "code": "SLD",
+   "fileName": "HeadsIWinTailsYouLose_SLD",
+   "name": "Heads I Win, Tails You Lose",
+   "releaseDate": "2026-05-18",
+   "source": "https://example.test",
+   "type": "Commander Deck"
+  },
+  {
+   "code": "ZZZ",
+   "fileName": "LonelyDeckCollectorSEdition_ZZZ",
+   "name": "Lonely Deck Collector's Edition",
+   "releaseDate": "2024-01-01",
+   "source": "https://example.test",
+   "type": "Commander Deck"
+  },
+  {
+   "code": "JMP",
+   "fileName": "JumpstartRed_JMP",
+   "name": "Red 1",
+   "releaseDate": "2020-07-17",
+   "source": "https://example.test",
+   "type": "Jumpstart"
+  },
+  {
+   "code": "DKM",
+   "fileName": "ThemeDeck_DKM",
+   "name": "Theme Deck Example",
+   "releaseDate": "1999-01-01",
+   "source": "https://example.test",
+   "type": "Theme Deck"
+  },
+  {
+   "code": "MTG",
+   "fileName": "MtgoCommander_MTG",
+   "name": "Commander Online Deck",
+   "releaseDate": "2020-01-01",
+   "source": "https://example.test",
+   "type": "MTGO Commander Deck"
+  },
+  {
+   "code": "CLB",
+   "fileName": "BundleLandPack_CLB",
+   "name": "Bundle Land Pack",
+   "releaseDate": "2022-06-10",
+   "source": "https://example.test",
+   "type": "Bundle Land Pack"
+  }
+ ]
+}

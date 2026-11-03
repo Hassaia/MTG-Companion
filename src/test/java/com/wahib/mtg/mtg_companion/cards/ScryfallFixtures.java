@@ -11,14 +11,14 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 /** Vraies réponses Scryfall enregistrées (allégées) dans src/test/resources/scryfall. */
-final class ScryfallFixtures {
+public final class ScryfallFixtures {
 
-	static final JsonMapper JSON = JsonMapper.builder().build();
+	public static final JsonMapper JSON = JsonMapper.builder().build();
 
 	private ScryfallFixtures() {
 	}
 
-	static String text(String fileName) {
+	public static String text(String fileName) {
 		try (InputStream input = ScryfallFixtures.class.getResourceAsStream("/scryfall/" + fileName)) {
 			if (input == null) {
 				throw new IllegalArgumentException("Fixture absente : " + fileName);
@@ -30,7 +30,7 @@ final class ScryfallFixtures {
 		}
 	}
 
-	static JsonNode json(String fileName) {
+	public static JsonNode json(String fileName) {
 		return JSON.readTree(text(fileName));
 	}
 

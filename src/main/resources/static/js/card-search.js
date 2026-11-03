@@ -6,10 +6,14 @@
 //  - en cours de frappe : suggestions ;
 //  - suggestion choisie, si la carte a plusieurs illustrations : grille pour choisir laquelle afficher.
 //
+// Pour l'envoi à la table, un second onglet « Decks en jeu » (deck-browser.js) propose les cartes des decks
+// choisis par les joueurs ; la carte choisie part par le même chemin (même langue, même historique).
+
 // La même recherche sert à choisir l'illustration du fond de sa zone (openCardSearch avec un rappel) :
 // la carte choisie est alors rendue à l'appelant au lieu d'être envoyée à la table.
 
 import { entryKey, loadHistory, orderForDisplay, recordShown, saveHistory, toggleFavorite } from './card-history.js';
+import { createDeckBrowser } from './deck-browser.js';
 
 const DEBOUNCE_MS = 350;
 const MIN_QUERY_LENGTH = 2;
@@ -26,6 +30,9 @@ const historyList = document.getElementById('card-history-list');
 const illustrationSection = document.getElementById('card-illustrations');
 const illustrationGrid = document.getElementById('card-illustration-grid');
 
+const tabs = document.getElementById('card-tabs');
+const globalSearch = document.getElementById('global-search');
+const deckBrowserElement = document.getElementById('deck-browser');
 const languageSelector = document.getElementById('card-language');
 const LANGUAGE_KEY = 'mtg-card-language';
 const LANGUAGES = ['fr', 'en', 'both'];
@@ -43,6 +50,10 @@ let pickHandler = null;
 let pickCancel = null;
 /** En mode « choisir une carte » : vrai si seules les impressions avec illustration seule sont proposées (fond de zone). */
 let artOnly = true;
+let deckBrowser = null;
+let activeTab = 'global';
+/** Vrai dès que l'utilisateur a touché un onglet : le choix automatique de l'onglet ne doit plus le déplacer. */
+let tabTouched = false;
 
 /**
  * @param {{ onCardSent: (label: string, warnings: string[]) => void, onClose?: () => void }} callbacks
@@ -62,6 +73,15 @@ export function initCardSearch(callbacks) {
 		}
 	});
 	renderLanguage();
+
+	deckBrowser = createDeckBrowser({ root: deckBrowserElement, onPick: (card) => sendAndRemember(card) });
+	tabs.addEventListener('click', (event) => {
+		const tab = event.target.closest('button[data-tab]');
+		if (tab) {
+			tabTouched = true;
+			selectTab(tab.dataset.tab);
+		}
+	});
 
 	input.addEventListener('input', () => {
 		clearTimeout(debounceTimer);
@@ -163,11 +183,46 @@ function open(title = SEARCH_TITLE, onPick = null, onCancel = null) {
 	input.value = '';
 	// Un autre onglet a pu modifier l'historique entre-temps
 	history = loadHistory();
+	activeTab = 'global';
 	showHistory();
-	input.focus();
+	tabTouched = false;
+	// Les onglets ne concernent que l'envoi à la table (pas le choix d'un fond de zone ni les rulings)
+	tabs.hidden = onPick !== null;
+	if (onPick === null) {
+		selectTab('decks');
+		chooseStartTab();
+	} else {
+		selectTab('global');
+	}
+}
+
+/** Premier onglet : les decks en jeu s'il y en a au moins un, sinon la recherche globale. */
+async function chooseStartTab() {
+	const count = await deckBrowser.load();
+	if (!tabTouched && !panel.hidden) {
+		selectTab(count > 0 ? 'decks' : 'global');
+	}
+}
+
+function selectTab(tab) {
+	activeTab = tab;
+	tabs.querySelectorAll('button[data-tab]').forEach((button) => {
+		button.setAttribute('aria-selected', String(button.dataset.tab === tab));
+	});
+	deckBrowserElement.hidden = tab !== 'decks';
+	globalSearch.hidden = tab !== 'global';
+	if (tab === 'global') {
+		input.focus();
+	} else {
+		input.blur();
+		if (tabTouched) {
+			deckBrowser.load();
+		}
+	}
 }
 
 function close() {
+	deckBrowser.reset();
 	panel.hidden = true;
 	document.body.classList.remove('modal-open');
 	clearTimeout(debounceTimer);
@@ -460,4 +515,8 @@ function cardButton({ name, label, printId, printLabel: edition }, source) {
 function showStatus(text, kind = 'info') {
 	statusElement.textContent = text;
 	statusElement.dataset.kind = kind;
+	if (activeTab === 'decks') {
+		// L'envoi d'une carte d'un deck signale ses erreurs là où l'utilisateur regarde
+		deckBrowser.setStatus(text, kind);
+	}
 }

@@ -47,6 +47,13 @@
 			<ul id="commander-rows" class="commander-rows"></ul>
 		</section>
 
+		<section id="my-deck" class="my-deck" aria-label="Mon deck">
+			<span class="my-deck-label">Mon deck</span>
+			<span id="my-deck-name" class="my-deck-name">Aucun deck choisi</span>
+			<button type="button" id="my-deck-change" class="my-deck-button">Choisir</button>
+			<button type="button" id="my-deck-clear" class="my-deck-button my-deck-clear" aria-label="Retirer mon deck" hidden>✕</button>
+		</section>
+
 		<!-- Icônes Lucide (ISC, lucide.dev) : scan-eye, image, book-open-text -->
 		<div class="quick-actions">
 			<button type="button" id="open-card-search" class="open-card-search" aria-label="Montrer une carte sur la table">
@@ -75,21 +82,61 @@
 			<button type="button" role="radio" data-lang="en">EN</button>
 			<button type="button" role="radio" data-lang="both">FR + EN</button>
 		</div>
+		<div id="card-tabs" class="card-tabs" role="tablist" aria-label="Source des cartes" hidden>
+			<button type="button" role="tab" id="tab-decks" data-tab="decks" aria-selected="false">Decks en jeu</button>
+			<button type="button" role="tab" id="tab-global" data-tab="global" aria-selected="true">Recherche globale</button>
+		</div>
+		<section id="deck-browser" class="deck-browser" role="tabpanel" aria-labelledby="tab-decks" hidden>
+			<p id="deck-browser-status" class="card-search-status" role="status"></p>
+			<ul id="deck-browser-decks" class="card-suggestions"></ul>
+			<div id="deck-browser-view" class="deck-view" hidden>
+				<div class="deck-view-header">
+					<button type="button" id="deck-browser-back" class="change-player">‹ Decks</button>
+					<h3 id="deck-browser-title" class="deck-view-title"></h3>
+				</div>
+				<input type="search" id="deck-browser-filter" class="card-search-input" placeholder="Chercher dans ce deck…"
+					autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="Chercher une carte dans le deck">
+				<section id="deck-browser-commanders" class="deck-section">
+					<h3 class="card-history-title">Commandant</h3>
+					<ul class="deck-cards"></ul>
+				</section>
+				<section id="deck-browser-cards" class="deck-section">
+					<h3 class="card-history-title">Deck</h3>
+					<ul class="deck-cards"></ul>
+				</section>
+			</div>
+		</section>
+		<div id="global-search" class="global-search" role="tabpanel" aria-labelledby="tab-global">
+			<form class="card-search-form" role="search">
+				<input type="search" id="card-search-input" class="card-search-input" placeholder="Foudre, Lightning Bolt, FIC 168…"
+					autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="search"
+					aria-label="Nom de la carte">
+			</form>
+			<p id="card-search-status" class="card-search-status" role="status"></p>
+			<section id="card-history" class="card-history" hidden>
+				<h3 class="card-history-title">Favoris et cartes récentes</h3>
+				<ul id="card-history-list" class="card-suggestions"></ul>
+			</section>
+			<ul id="card-suggestions" class="card-suggestions"></ul>
+			<section id="card-illustrations" class="card-illustrations" hidden>
+				<h3 id="card-illustrations-title" class="card-history-title"></h3>
+				<ul id="card-illustration-grid" class="illustration-grid"></ul>
+			</section>
+		</div>
+	</section>
+
+	<section id="deck-picker" class="card-search deck-picker" role="dialog" aria-modal="true" aria-labelledby="deck-picker-title" hidden>
+		<header class="card-search-header">
+			<h2 id="deck-picker-title">Mon deck</h2>
+			<button type="button" id="close-deck-picker" class="change-player">Retour</button>
+		</header>
 		<form class="card-search-form" role="search">
-			<input type="search" id="card-search-input" class="card-search-input" placeholder="Foudre, Lightning Bolt, FIC 168…"
+			<input type="search" id="deck-picker-input" class="card-search-input" placeholder="Final Fantasy, Limit Break, Cloud…"
 				autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="search"
-				aria-label="Nom de la carte">
+				aria-label="Nom du deck, édition ou commandant">
 		</form>
-		<p id="card-search-status" class="card-search-status" role="status"></p>
-		<section id="card-history" class="card-history" hidden>
-			<h3 class="card-history-title">Favoris et cartes récentes</h3>
-			<ul id="card-history-list" class="card-suggestions"></ul>
-		</section>
-		<ul id="card-suggestions" class="card-suggestions"></ul>
-		<section id="card-illustrations" class="card-illustrations" hidden>
-			<h3 id="card-illustrations-title" class="card-history-title"></h3>
-			<ul id="card-illustration-grid" class="illustration-grid"></ul>
-		</section>
+		<p id="deck-picker-status" class="card-search-status" role="status"></p>
+		<ul id="deck-picker-results" class="card-suggestions"></ul>
 	</section>
 
 	<section id="zone-background" class="card-search zone-background" role="dialog" aria-modal="true" aria-labelledby="zone-background-title" hidden>
