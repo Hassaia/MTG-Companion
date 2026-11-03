@@ -161,3 +161,8 @@ a {
 	border-color: var(--danger);
 	color: var(--danger);
 }
+
+/* Page affichée dans une iframe de /table (?embedded=true) : toute la place pour le contenu */
+body.embedded .topbar {
+	display: none;
+}

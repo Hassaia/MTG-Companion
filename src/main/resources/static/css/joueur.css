@@ -895,3 +895,8 @@ body.modal-open {
 	color: var(--danger);
 	cursor: pointer;
 }
+
+/* Mode cartes intégré à /table : la croix de la fenêtre remplace « Retour » */
+body.cards-only #close-card-search {
+	display: none;
+}

@@ -36,6 +36,7 @@ let debounceTimer = null;
 let pendingSuggestions = null;
 let busy = false;
 let onCardSent = () => {};
+let onClose = () => {};
 /** Rappel du mode « choisir une carte sans l'envoyer à la table », ou null. */
 let pickHandler = null;
 /** Rappel quand la recherche est refermée sans avoir choisi de carte (mode « choisir une carte »). */
@@ -43,9 +44,13 @@ let pickCancel = null;
 /** En mode « choisir une carte » : vrai si seules les impressions avec illustration seule sont proposées (fond de zone). */
 let artOnly = true;
 
-/** @param {{ onCardSent: (label: string, warnings: string[]) => void }} callbacks */
+/**
+ * @param {{ onCardSent: (label: string, warnings: string[]) => void, onClose?: () => void }} callbacks
+ *        onClose : recherche d'envoi à la table refermée (après envoi réussi ou annulation)
+ */
 export function initCardSearch(callbacks) {
 	onCardSent = callbacks.onCardSent;
+	onClose = callbacks.onClose ?? onClose;
 	document.getElementById('open-card-search').addEventListener('click', () => open());
 	document.getElementById('close-card-search').addEventListener('click', close);
 	languageSelector.addEventListener('click', (event) => {
@@ -129,6 +134,11 @@ export function openCardSearch(title, onPick, onCancel = null, options = {}) {
 	open(title, onPick, onCancel);
 }
 
+/** Ouvre la recherche d'envoi à la table (mode intégré sans écran de jeu). */
+export function openSendSearch() {
+	open();
+}
+
 /** @returns {Promise<boolean>} false si le serveur est injoignable */
 export async function hideCard() {
 	try {
@@ -166,6 +176,8 @@ function close() {
 		const cancel = pickCancel;
 		pickCancel = null;
 		cancel();
+	} else if (!pickHandler) {
+		onClose();
 	}
 }
 

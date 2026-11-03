@@ -13,11 +13,34 @@
 
 	<footer class="table-footer">
 		<span>Rejoindre : <strong id="join-address">…</strong></span>
-		<span id="connection-status" class="connection-status">Connexion…</span>
+		<span class="footer-end">
+			<span id="connection-status" class="connection-status">Connexion…</span>
+			<!-- Icônes Lucide (ISC, lucide.dev) : scan-eye, settings, x -->
+			<button type="button" id="open-cards" class="settings-button" title="Rechercher une carte" aria-label="Rechercher une carte">
+				<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><circle cx="12" cy="12" r="1"/><path d="M18.944 12.33a1 1 0 0 0 0-.66 7.5 7.5 0 0 0-13.888 0 1 1 0 0 0 0 .66 7.5 7.5 0 0 0 13.888 0"/></svg>
+			</button>
+			<button type="button" id="open-config" class="settings-button" title="Configuration" aria-label="Configuration">
+				<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+			</button>
+		</span>
 	</footer>
+
+	<!-- /config et /joueur affichés tels quels dans une iframe (une seule modale à la fois) -->
+	<dialog id="settings-dialog" class="settings-dialog" aria-labelledby="settings-title">
+		<header class="settings-header">
+			<h2 id="settings-title"></h2>
+			<button type="button" id="settings-close" class="settings-button" aria-label="Fermer">
+				<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+			</button>
+		</header>
+		<iframe id="settings-frame" class="settings-frame" title="Configuration"></iframe>
+	</dialog>
 
 	<!-- Carte Magic envoyée depuis un téléphone, par-dessus la partie -->
 	<section id="card-overlay" class="card-overlay" aria-live="polite" hidden>
+		<button type="button" id="card-overlay-close" class="card-overlay-close" title="Fermer la carte" aria-label="Fermer la carte">
+			<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+		</button>
 		<div id="card-overlay-images" class="card-overlay-images"></div>
 		<p id="card-overlay-warning" class="card-overlay-warning" hidden></p>
 		<div class="card-overlay-progress" aria-hidden="true"><div id="card-overlay-progress-bar"></div></div>
@@ -26,6 +49,9 @@
 
 	<template id="player-template">
 		<section class="player">
+			<button type="button" class="settings-button player-settings" aria-label="Paramètres du joueur">
+				<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+			</button>
 			<div class="player-art" aria-hidden="true"></div>
 			<div class="player-info">
 				<header class="player-name"></header>

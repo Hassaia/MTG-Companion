@@ -1,4 +1,4 @@
-import { hideCard, initCardSearch } from './card-search.js';
+import { hideCard, initCardSearch, openSendSearch } from './card-search.js';
 import { initRulings } from './rulings.js';
 import { connectToGame } from './connection.js';
 import { LifeChangeIndicator } from './life-change.js';
@@ -20,13 +20,29 @@ const playScreen = document.getElementById('play-screen');
 const commanderRows = document.getElementById('commander-rows');
 
 let currentGame = null;
-let selectedPlayerId = readStoredPlayerId();
+/**
+ * Mode intégré (iframe de /table) : le joueur vient de l'URL ; le localStorage n'est ni lu ni écrit pour
+ * l'identité. Il n'y a ni choix ni changement de joueur.
+ */
+const params = new URLSearchParams(location.search);
+/** Variante « cartes » : seule la recherche de carte est affichée, sans joueur ni connexion WebSocket. */
+const CARDS_ONLY = params.get('embedded') === 'cards';
+const EMBEDDED = CARDS_ONLY || params.get('embedded') === 'true';
+if (EMBEDDED) {
+	document.body.classList.add('embedded');
+}
+if (CARDS_ONLY) {
+	document.body.classList.add('cards-only');
+}
+
+let selectedPlayerId = EMBEDDED ? readEmbeddedPlayerId() : readStoredPlayerId();
 /** Composition affichée sur l'écran de jeu : les lignes ne sont recréées que si elle change. */
 let renderedLayout = null;
 let commanderRowElements = new Map();
 let ownLifeChange = null;
 
-const connection = connectToGame({
+// En mode cartes, /table affiche déjà la carte envoyée par HTTP : aucune connexion n'est nécessaire
+const connection = CARDS_ONLY ? null : connectToGame({
 	onState(message) {
 		currentGame = message.game;
 		render();
@@ -47,6 +63,11 @@ function hideCardBanner() {
 
 // --- Mémorisation du joueur (localStorage peut être indisponible, en navigation privée par exemple)
 
+function readEmbeddedPlayerId() {
+	const value = Number(params.get('playerId'));
+	return Number.isInteger(value) && value > 0 ? value : null;
+}
+
 function readStoredPlayerId() {
 	try {
 		const value = Number(localStorage.getItem(STORAGE_KEY));
@@ -57,6 +78,9 @@ function readStoredPlayerId() {
 }
 
 function storePlayerId(playerId) {
+	if (EMBEDDED) {
+		return;
+	}
 	try {
 		if (playerId === null) {
 			localStorage.removeItem(STORAGE_KEY);
@@ -83,6 +107,10 @@ function render() {
 	const me = currentGame.players.find((player) => player.id === selectedPlayerId);
 	if (me) {
 		renderPlayScreen(me);
+	} else if (EMBEDDED) {
+		// Joueur disparu : /table ferme la modale, on n'affiche surtout pas le choix du joueur
+		chooseScreen.hidden = true;
+		playScreen.hidden = true;
 	} else {
 		// Joueur jamais choisi, ou disparu (nouvelle partie avec moins de joueurs)
 		renderChooseScreen();
@@ -120,7 +148,7 @@ function renderChooseScreen() {
 function renderPlayScreen(me) {
 	chooseScreen.hidden = true;
 	playScreen.hidden = false;
-	changePlayerButton.hidden = false;
+	changePlayerButton.hidden = EMBEDDED;
 	topbar.dataset.player = String(me.id);
 	title.textContent = me.name;
 
@@ -218,7 +246,7 @@ function showToast(text, kind = 'error') {
 // --- Actions
 
 function sendAction(message) {
-	if (connection.send(message)) {
+	if (connection?.send(message)) {
 		navigator.vibrate?.(10);
 	} else {
 		showToast('Pas de connexion au serveur, action non envoyée.');
@@ -247,9 +275,22 @@ commanderRows.addEventListener('click', (event) => {
 changePlayerButton.addEventListener('click', () => selectPlayer(null));
 
 initCardSearch({
-	onCardSent: (label, warnings) => showToast(
-		[`« ${label} » est affichée sur la table.`, ...warnings].join(' '), 'success'),
+	onCardSent: (label, warnings) => {
+		// En mode cartes, /table affiche la carte et ses avertissements, et ferme la fenêtre
+		if (!CARDS_ONLY) {
+			showToast([`« ${label} » est affichée sur la table.`, ...warnings].join(' '), 'success');
+		}
+	},
+	// Carte envoyée ou recherche annulée : /table ferme la fenêtre (même origine uniquement)
+	onClose: () => {
+		if (CARDS_ONLY) {
+			parent.postMessage({ type: 'mtg-companion:close-embedded' }, location.origin);
+		}
+	},
 });
+if (CARDS_ONLY) {
+	openSendSearch();
+}
 
 initRulings();
 
