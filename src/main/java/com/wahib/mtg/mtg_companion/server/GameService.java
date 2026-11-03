@@ -114,6 +114,30 @@ public class GameService {
 		return true;
 	}
 
+	/**
+	 * Supprime un deck importé et le retire des joueurs qui l'avaient choisi (ils n'ont plus de deck).
+	 *
+	 * @return faux si ce deck importé n'existe pas
+	 */
+	public synchronized boolean deleteCustomDeck(String deckId) {
+		if (!deckService.deleteCustom(deckId)) {
+			return false;
+		}
+		boolean changed = false;
+		for (Player player : game.players()) {
+			if (deckId.equals(player.deckId())) {
+				game.setDeck(player.id(), null);
+				changed = true;
+			}
+		}
+		if (changed) {
+			GameSnapshot snapshot = game.snapshot();
+			save(snapshot);
+			broadcaster.broadcastState(snapshot);
+		}
+		return true;
+	}
+
 	public synchronized GameSnapshot snapshot() {
 		return game.snapshot();
 	}

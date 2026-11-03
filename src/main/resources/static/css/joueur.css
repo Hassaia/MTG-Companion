@@ -1083,3 +1083,80 @@ body.modal-open {
 body.cards-only #close-card-search {
 	display: none;
 }
+
+/* Import de deck (Moxfield) et gestion des decks importés */
+.deck-import-open {
+	align-self: flex-start;
+	margin: 8px 0;
+}
+
+.deck-import-pane {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.deck-import-text {
+	min-height: 180px;
+	font-family: ui-monospace, monospace;
+	font-size: 0.85rem;
+	resize: vertical;
+}
+
+.deck-import-help,
+.deck-import-summary {
+	margin: 0;
+	color: var(--text-muted);
+	font-size: 0.9rem;
+}
+
+.deck-import-field {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	font-weight: 600;
+}
+
+.deck-import-check {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	gap: 8px;
+	font-weight: 400;
+}
+
+.deck-import-commanders {
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+}
+
+.deck-import-list {
+	max-height: 40vh;
+	margin: 0;
+	padding: 0;
+	overflow-y: auto;
+	list-style: none;
+}
+
+.deck-import-problem {
+	padding: 6px 0;
+	border-bottom: 1px solid var(--border);
+	overflow-wrap: anywhere;
+}
+
+.deck-import-duplicate,
+.deck-import-actions,
+.deck-manage {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.deck-import-duplicate p {
+	flex-basis: 100%;
+	margin: 0;
+}
+
+.deck-manage {
+	padding: 4px 0 8px;
+}

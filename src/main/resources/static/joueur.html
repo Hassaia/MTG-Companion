@@ -130,13 +130,64 @@
 			<h2 id="deck-picker-title">Mon deck</h2>
 			<button type="button" id="close-deck-picker" class="change-player">Retour</button>
 		</header>
+		<div class="zone-tabs" role="tablist" aria-label="Catégorie de deck">
+			<button type="button" id="deck-tab-official" class="zone-tab" role="tab" data-origin="MTGJSON" aria-selected="true">Préconstruits officiels</button>
+			<button type="button" id="deck-tab-custom" class="zone-tab" role="tab" data-origin="CUSTOM" aria-selected="false">Decks importés</button>
+		</div>
 		<form class="card-search-form" role="search">
 			<input type="search" id="deck-picker-input" class="card-search-input" placeholder="Final Fantasy, Limit Break, Cloud…"
 				autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="search"
 				aria-label="Nom du deck, édition ou commandant">
 		</form>
+		<button type="button" id="deck-import-open" class="my-deck-button deck-import-open">Importer un deck</button>
 		<p id="deck-picker-status" class="card-search-status" role="status"></p>
 		<ul id="deck-picker-results" class="card-suggestions"></ul>
+	</section>
+
+	<section id="deck-import" class="card-search deck-import" role="dialog" aria-modal="true" aria-labelledby="deck-import-title" hidden>
+		<header class="card-search-header">
+			<h2 id="deck-import-title">Importer un deck</h2>
+			<button type="button" id="close-deck-import" class="change-player">Annuler</button>
+		</header>
+		<p id="deck-import-status" class="card-search-status" role="status"></p>
+
+		<form id="deck-import-source" class="deck-import-pane">
+			<p class="deck-import-help">Collez la decklist exportée depuis Moxfield (« Export » → texte), ou choisissez un fichier .txt.</p>
+			<textarea id="deck-import-text" class="card-search-input deck-import-text" rows="10" spellcheck="false"
+				placeholder="1 Sheoldred, the Apocalypse (DMU) 369&#10;1 Sol Ring (FDC) 286&#10;…" aria-label="Decklist Moxfield"></textarea>
+			<input type="file" id="deck-import-file" accept=".txt,text/plain" aria-label="Fichier .txt">
+			<button type="submit" class="my-deck-button">Analyser</button>
+		</form>
+
+		<form id="deck-import-review" class="deck-import-pane" hidden>
+			<label class="deck-import-field">Nom du deck
+				<input type="text" id="deck-import-name" class="card-search-input" maxlength="60" autocomplete="off" required>
+			</label>
+			<p id="deck-import-summary" class="deck-import-summary"></p>
+			<fieldset class="deck-import-commanders">
+				<legend>Commandant(s)</legend>
+				<p id="deck-import-commander-hint" class="deck-import-help"></p>
+				<ul id="deck-import-commander-list" class="deck-import-list"></ul>
+			</fieldset>
+			<section id="deck-import-problems" hidden>
+				<h3 class="card-history-title">Cartes à corriger</h3>
+				<ul id="deck-import-problem-list" class="deck-import-list"></ul>
+				<label class="deck-import-field deck-import-check">
+					<input type="checkbox" id="deck-import-ignore"> Écarter ces lignes et enregistrer le reste
+				</label>
+				<p class="deck-import-help">Sinon, revenez à la liste pour les corriger puis analysez-la de nouveau.</p>
+			</section>
+			<div id="deck-import-duplicate" class="deck-import-duplicate" hidden>
+				<p id="deck-import-duplicate-text"></p>
+				<button type="button" id="deck-import-update" class="my-deck-button">Mettre à jour le deck existant</button>
+				<button type="button" id="deck-import-rename" class="my-deck-button">Choisir un autre nom</button>
+				<button type="button" id="deck-import-cancel" class="my-deck-button">Annuler</button>
+			</div>
+			<div class="deck-import-actions">
+				<button type="button" id="deck-import-back" class="my-deck-button">Modifier la liste</button>
+				<button type="submit" id="deck-import-save" class="my-deck-button">Enregistrer</button>
+			</div>
+		</form>
 	</section>
 
 	<section id="zone-background" class="card-search zone-background" role="dialog" aria-modal="true" aria-labelledby="zone-background-title" hidden>

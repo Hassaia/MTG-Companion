@@ -3,10 +3,12 @@
 // Le nom et les commandants viennent du serveur, qui les connaît par l'identifiant du deck.
 
 import { deckLabel } from './deck-names.js';
+import { initDeckImport, openDeckImport } from './deck-import.js';
 
 const DEBOUNCE_MS = 300;
 const NO_CONNECTION = 'Pas de connexion au serveur, réessayez dans un instant.';
 const HINT = 'Tapez un nom de deck, une édition ou un commandant : Final Fantasy, Limit Break…';
+const CUSTOM_HINT = 'Decks importés par les joueurs de la table. Tapez un nom ou un commandant.';
 
 const section = document.getElementById('my-deck');
 const nameElement = document.getElementById('my-deck-name');
@@ -22,12 +24,16 @@ let pendingSearch = null;
 /** Identifiant du deck dont le nom est affiché, pour ne redemander le nom que lorsque le choix change. */
 let shownDeckId;
 let updateId = 0;
+/** Catégorie affichée : préconstruits officiels (MTGJSON) ou decks importés (CUSTOM). */
+let origin = 'MTGJSON';
 
 /**
  * @param {{ getMe: () => object | null, send: (message: object) => void }} options
  */
 export function initDeckPicker(options) {
 	callbacks = options;
+	initDeckImport({ onSaved: () => search() });
+	panel.querySelectorAll('[data-origin]').forEach((tab) => tab.addEventListener('click', () => selectOrigin(tab.dataset.origin)));
 	document.getElementById('my-deck-change').addEventListener('click', open);
 	document.getElementById('close-deck-picker').addEventListener('click', close);
 	clearButton.addEventListener('click', () => {
@@ -46,6 +52,11 @@ export function initDeckPicker(options) {
 		search();
 	});
 	results.addEventListener('click', (event) => {
+		const action = event.target.closest('button[data-action]');
+		if (action) {
+			manageDeck(action.dataset.action, action.dataset.id, action.dataset.name);
+			return;
+		}
 		const button = event.target.closest('button[data-deck]');
 		const me = callbacks.getMe();
 		if (button && me) {
@@ -54,7 +65,7 @@ export function initDeckPicker(options) {
 		}
 	});
 	document.addEventListener('keydown', (event) => {
-		if (event.key === 'Escape' && !panel.hidden) {
+		if (event.key === 'Escape' && !panel.hidden && document.getElementById('deck-import').hidden) {
 			close();
 		}
 	});
@@ -98,8 +109,7 @@ function open() {
 	document.body.classList.add('modal-open');
 	input.value = '';
 	results.replaceChildren();
-	showStatus(HINT);
-	search();
+	selectOrigin(origin);
 	input.focus();
 }
 
@@ -108,6 +118,53 @@ function close() {
 	document.body.classList.remove('modal-open');
 	clearTimeout(debounceTimer);
 	pendingSearch?.abort();
+}
+
+function selectOrigin(next) {
+	origin = next;
+	panel.querySelectorAll('[data-origin]').forEach((tab) => tab.setAttribute('aria-selected', String(tab.dataset.origin === origin)));
+	showStatus(origin === 'CUSTOM' ? CUSTOM_HINT : HINT);
+	search();
+}
+
+/** Renommer, remplacer la liste ou supprimer un deck importé (la suppression demande confirmation). */
+async function manageDeck(action, id, name) {
+	try {
+		if (action === 'replace') {
+			openDeckImport({ id, name });
+		} else if (action === 'rename') {
+			const newName = prompt('Nouveau nom du deck :', name)?.trim();
+			if (newName && newName !== name) {
+				const response = await fetch(`/api/decks/custom/${encodeURIComponent(id)}`, {
+					method: 'PATCH',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ name: newName }),
+				});
+				if (!response.ok) {
+					const body = await response.json().catch(() => null);
+					showStatus(body?.message ?? `Erreur du serveur (HTTP ${response.status}).`, 'error');
+					return;
+				}
+				search();
+			}
+		} else if (action === 'delete') {
+			const inPlay = await fetch('/api/decks/in-play').then((response) => (response.ok ? response.json() : []));
+			const users = inPlay.filter((deck) => deck.deckId === id).map((deck) => deck.playerName);
+			const warning = users.length > 0 ? `
+
+Utilisé par : ${users.join(', ')}. Ils n'auront plus de deck.` : '';
+			if (confirm(`Supprimer définitivement le deck « ${name} » ?${warning}`)) {
+				const response = await fetch(`/api/decks/custom/${encodeURIComponent(id)}`, { method: 'DELETE' });
+				if (!response.ok && response.status !== 404) {
+					showStatus(`Suppression impossible (HTTP ${response.status}).`, 'error');
+					return;
+				}
+				search();
+			}
+		}
+	} catch {
+		showStatus(NO_CONNECTION, 'error');
+	}
 }
 
 function showStatus(text, kind = '') {
@@ -122,7 +179,7 @@ async function search() {
 	const query = input.value.trim();
 	showStatus('Recherche…');
 	try {
-		const response = await fetch(`/api/decks?q=${encodeURIComponent(query)}`, { signal: request.signal });
+		const response = await fetch(`/api/decks?origin=${origin}&q=${encodeURIComponent(query)}`, { signal: request.signal });
 		if (!response.ok) {
 			const body = await response.json().catch(() => null);
 			showStatus(body?.message ?? `Erreur du serveur (HTTP ${response.status}).`, 'error');
@@ -153,7 +210,27 @@ function render(decks, query) {
 		button.append(name, details);
 		const item = document.createElement('li');
 		item.append(button);
+		if (deck.origin === 'CUSTOM') {
+			item.append(manageButtons(deck));
+		}
 		return item;
 	}));
-	showStatus(decks.length === 0 ? 'Aucun préconstruit trouvé.' : query ? '' : 'Les plus récents d\'abord.');
+	const empty = origin === 'CUSTOM' ? 'Aucun deck importé. Utilisez « Importer un deck ».' : 'Aucun préconstruit trouvé.';
+	showStatus(decks.length === 0 ? empty : query || origin === 'CUSTOM' ? '' : 'Les plus récents d\'abord.');
+}
+
+function manageButtons(deck) {
+	const actions = document.createElement('div');
+	actions.className = 'deck-manage';
+	for (const [action, label] of [['rename', 'Renommer'], ['replace', 'Remplacer la liste'], ['delete', 'Supprimer']]) {
+		const button = document.createElement('button');
+		button.type = 'button';
+		button.className = 'my-deck-button';
+		button.dataset.action = action;
+		button.dataset.id = deck.id;
+		button.dataset.name = deck.name;
+		button.textContent = label;
+		actions.append(button);
+	}
+	return actions;
 }

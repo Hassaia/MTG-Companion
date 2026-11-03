@@ -39,6 +39,9 @@ public class ScryfallClient {
 	private static final Duration CARD_SEARCH_INTERVAL = Duration.ofMillis(550);
 	private static final Duration GENERAL_INTERVAL = Duration.ofMillis(120);
 
+	/** Limite de {@code POST /cards/collection} : 75 identifiants par requête. */
+	static final int COLLECTION_BATCH_SIZE = 75;
+
 	private static final String UNREACHABLE_MESSAGE =
 			"Scryfall ne répond pas. Vérifiez la connexion Internet du PC qui fait tourner le serveur.";
 
@@ -165,6 +168,32 @@ public class ScryfallClient {
 				})
 				.accept(MediaType.APPLICATION_JSON));
 
+		return interpret(response);
+	}
+
+	/**
+	 * Cartes trouvées pour des identifiants ({@code {"id"}}, {@code {"set","collector_number"}} ou {@code {"name"}}),
+	 * par lots de {@value #COLLECTION_BATCH_SIZE} (limite de {@code POST /cards/collection}). L'ordre n'est pas
+	 * garanti et les cartes introuvables sont simplement absentes : c'est à l'appelant de faire correspondre.
+	 */
+	public List<JsonNode> collection(List<Map<String, String>> identifiers) {
+		List<JsonNode> cards = new ArrayList<>();
+		for (int start = 0; start < identifiers.size(); start += COLLECTION_BATCH_SIZE) {
+			List<Map<String, String>> batch = identifiers.subList(start, Math.min(start + COLLECTION_BATCH_SIZE, identifiers.size()));
+			requireNotPaused();
+			waitForTurn(generalLane);
+			byte[] body = jsonMapper.writeValueAsBytes(Map.of("identifiers", batch));
+			RawResponse response = execute(restClient.post()
+					.uri(builder -> builder.pathSegment("cards", "collection").build())
+					.contentType(MediaType.APPLICATION_JSON)
+					.accept(MediaType.APPLICATION_JSON)
+					.body(body));
+			interpret(response).ifPresent(list -> cards.addAll(elements(list.get("data"))));
+		}
+		return cards;
+	}
+
+	private Optional<JsonNode> interpret(RawResponse response) {
 		if (response.status() == 404) {
 			return Optional.empty();
 		}

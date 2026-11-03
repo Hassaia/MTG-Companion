@@ -41,7 +41,8 @@ class DeckServiceTest {
 	private DeckService service() {
 		// Les noms d'édition viennent de Scryfall, injoignable ici (port fermé) : ils restent inconnus
 		return new DeckService(new MtgJsonClient(mtgJson.baseUrl(), JSON),
-				new ScryfallClient("http://localhost:1", JSON), new DeckCache(directory, JSON));
+				new ScryfallClient("http://localhost:1", JSON), new DeckCache(directory, JSON),
+				new CustomDeckStore(directory.resolve("custom-decks"), JSON));
 	}
 
 	@Test
