@@ -17,7 +17,7 @@ Prérequis : un JDK 25. `mvnw.cmd` a besoin de la variable `JAVA_HOME`. Pour la 
 pour toutes (puis fermer et rouvrir les terminaux) :
 
 ```powershell
-setx JAVA_HOME "C:\Users\wahib\.jdks\corretto-25.0.5"
+setx JAVA_HOME "<chemin vers le JDK 25>"
 ```
 
 Puis, dans un terminal ouvert dans le dossier du projet :
