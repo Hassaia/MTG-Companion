@@ -59,6 +59,11 @@ public final class FakeScryfallServer implements AutoCloseable {
 		return this;
 	}
 
+	public FakeScryfallServer clearStubs() {
+		stubs.clear();
+		return this;
+	}
+
 	public FakeScryfallServer stubBody(String path, Map<String, String> parameters, String body) {
 		stubs.add(new Stub(path, parameters, 200, body));
 		return this;

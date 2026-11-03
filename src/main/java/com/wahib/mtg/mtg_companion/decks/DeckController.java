@@ -38,8 +38,9 @@ public class DeckController {
 	}
 
 	@GetMapping
-	public List<DeckSummary> search(@RequestParam(name = "q", defaultValue = "") String query) {
-		return deckService.search(query);
+	public List<DeckSummary> search(@RequestParam(name = "q", defaultValue = "") String query,
+			@RequestParam(name = "origin", defaultValue = "MTGJSON") DeckOrigin origin) {
+		return deckService.search(query, origin);
 	}
 
 	/** Un deck par joueur qui en a choisi un, dans l'ordre des joueurs ; ses cartes ne sont pas renvoyées ici. */

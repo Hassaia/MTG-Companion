@@ -80,9 +80,13 @@ final class DeckCatalog {
 	 */
 	static List<DeckSummary> search(List<Entry> entries, String query, Map<String, String> setNames,
 			Map<String, List<String>> commanders) {
+		return matching(entries.stream().map(entry -> summary(entry, setNames, commanders)).toList(), query);
+	}
+
+	/** Même recherche sur des résumés déjà construits (decks importés). */
+	static List<DeckSummary> matching(List<DeckSummary> decks, String query) {
 		List<String> words = List.of(normalize(query).split(" ")).stream().filter(word -> !word.isEmpty()).toList();
-		return entries.stream()
-				.map(entry -> summary(entry, setNames, commanders))
+		return decks.stream()
 				.filter(deck -> {
 					String haystack = normalize(deck.name() + " " + deck.code() + " " + deck.setName() + " "
 							+ String.join(" ", deck.commanders()));

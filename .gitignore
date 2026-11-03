@@ -13,6 +13,7 @@ card-cache/
 
 ### Cache des decks MTGJSON ###
 deck-cache/
+custom-decks/
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/

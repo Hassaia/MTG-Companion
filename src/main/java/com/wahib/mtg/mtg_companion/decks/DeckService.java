@@ -43,6 +43,7 @@ public class DeckService {
 	private final MtgJsonClient mtgJson;
 	private final ScryfallClient scryfall;
 	private final DeckCache cache;
+	private final CustomDeckStore customDecks;
 
 	private DeckCache.CachedCatalog catalog;
 	private Map<String, String> setNames = Map.of();
@@ -50,10 +51,11 @@ public class DeckService {
 	private Instant lastFailure = Instant.MIN;
 	private final Map<String, List<String>> commanders = new ConcurrentHashMap<>();
 
-	public DeckService(MtgJsonClient mtgJson, ScryfallClient scryfall, DeckCache cache) {
+	public DeckService(MtgJsonClient mtgJson, ScryfallClient scryfall, DeckCache cache, CustomDeckStore customDecks) {
 		this.mtgJson = mtgJson;
 		this.scryfall = scryfall;
 		this.cache = cache;
+		this.customDecks = customDecks;
 		this.commanders.putAll(cache.commanders());
 	}
 
@@ -72,7 +74,35 @@ public class DeckService {
 		return found.size() > MAX_RESULTS ? found.subList(0, MAX_RESULTS) : found;
 	}
 
+	/**
+	 * Recherche dans l'une des deux catégories. Les decks importés ne dépendent pas de MTGJSON : ils restent
+	 * consultables même si le catalogue est indisponible.
+	 */
+	public List<DeckSummary> search(String query, DeckOrigin origin) {
+		if (origin != DeckOrigin.CUSTOM) {
+			return search(query);
+		}
+		List<DeckSummary> decks = customDecks.all().stream()
+				.sorted(Comparator.comparing(DeckContent::name, String.CASE_INSENSITIVE_ORDER))
+				.map(DeckService::customSummary)
+				.toList();
+		return DeckCatalog.matching(decks, query);
+	}
+
+	private static DeckSummary customSummary(DeckContent deck) {
+		return new DeckSummary(deck.id(), deck.name(), null, null, deck.releaseDate(),
+				deck.commanders().stream().map(DeckCard::name).toList(), DeckOrigin.CUSTOM);
+	}
+
+	/** Supprime un deck importé ; à appeler via {@code GameService}, qui retire aussi le deck des joueurs. */
+	public boolean deleteCustom(String id) {
+		return isValidId(id) && DeckOrigin.of(id) == DeckOrigin.CUSTOM && customDecks.delete(id);
+	}
+
 	public Optional<DeckSummary> find(String id) {
+		if (DeckOrigin.of(id) == DeckOrigin.CUSTOM) {
+			return customDecks.get(id).map(DeckService::customSummary);
+		}
 		return entries().stream()
 				.filter(entry -> entry.fileName().equals(id))
 				.findFirst()
@@ -81,6 +111,9 @@ public class DeckService {
 
 	/** Commandants déjà connus d'un deck, sans rien télécharger. */
 	public List<String> knownCommanders(String id) {
+		if (DeckOrigin.of(id) == DeckOrigin.CUSTOM) {
+			return customDecks.get(id).map(deck -> deck.commanders().stream().map(DeckCard::name).toList()).orElse(List.of());
+		}
 		return commanders.getOrDefault(id, List.of());
 	}
 
@@ -91,6 +124,9 @@ public class DeckService {
 	 * @throws DecksUnavailableException si le deck n'est pas en cache et que MTGJSON est injoignable
 	 */
 	public DeckContent deck(String id) {
+		if (isValidId(id) && DeckOrigin.of(id) == DeckOrigin.CUSTOM) {
+			return customDecks.get(id).orElseThrow(() -> new DeckNotFoundException(id));
+		}
 		if (!isValidId(id) || find(id).isEmpty()) {
 			throw new DeckNotFoundException(id);
 		}
