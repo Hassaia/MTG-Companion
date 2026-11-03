@@ -1,5 +1,10 @@
 import { connectToGame } from './connection.js';
 
+// Affichée dans une iframe de /table : voir body.embedded dans common.css
+if (new URLSearchParams(location.search).get('embedded') === 'true') {
+	document.body.classList.add('embedded');
+}
+
 const DEFAULT_STARTING_LIFE = { STANDARD: 20, COMMANDER: 40 };
 const FORMAT_LABELS = { STANDARD: 'Standard', COMMANDER: 'Commander' };
 

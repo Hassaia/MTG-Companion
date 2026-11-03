@@ -429,3 +429,141 @@ body {
 .table-footer .connection-status {
 	font-size: inherit;
 }
+
+/* --- Rouages et fenêtres de configuration --- */
+
+.settings-button {
+	display: inline-grid;
+	place-items: center;
+	padding: 0;
+	border: 1px solid var(--border);
+	border-radius: 50%;
+	background: rgb(10 11 14 / 0.6);
+	color: var(--text-muted);
+	cursor: pointer;
+}
+
+.settings-button:hover,
+.settings-button:focus-visible {
+	color: var(--text);
+	border-color: var(--text-muted);
+}
+
+.settings-button svg {
+	width: 60%;
+	height: 60%;
+}
+
+.footer-end {
+	display: flex;
+	align-items: center;
+	gap: 1.6vmin;
+}
+
+.table-footer .settings-button {
+	width: 38px;
+	height: 38px;
+}
+
+/* Coin extérieur de la zone, à l'opposé du bloc d'infos (coin intérieur) quand il y a une illustration */
+.player-settings {
+	position: absolute;
+	top: 1.2vmin;
+	right: 1.2vmin;
+	z-index: 2;
+	width: clamp(28px, 4vmin, 44px);
+	height: clamp(28px, 4vmin, 44px);
+	opacity: 0.55;
+}
+
+.player-settings:hover,
+.player-settings:focus-visible {
+	opacity: 1;
+}
+
+.table[data-count="4"] .player:nth-child(n+3) .player-settings {
+	top: auto;
+	bottom: 1.2vmin;
+}
+
+.settings-dialog {
+	width: min(1100px, 96vw);
+	height: min(900px, 94dvh);
+	max-width: none;
+	max-height: none;
+	padding: 0;
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+	background: var(--bg);
+	color: var(--text);
+	overflow: hidden;
+}
+
+.settings-dialog[open] {
+	display: flex;
+	flex-direction: column;
+}
+
+.settings-dialog::backdrop {
+	background: rgb(0 0 0 / 0.7);
+}
+
+.settings-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 8px 12px;
+	border-bottom: 1px solid var(--border);
+}
+
+.settings-header h2 {
+	margin: 0;
+	font-size: 1rem;
+}
+
+.settings-header .settings-button {
+	width: 36px;
+	height: 36px;
+}
+
+.settings-frame {
+	flex: 1;
+	width: 100%;
+	min-height: 0;
+	border: 0;
+	background: var(--bg);
+}
+
+body.settings-open {
+	overflow: hidden;
+}
+
+/* Fermeture manuelle de la carte : fixe dans le coin, indépendante de la taille de l'image */
+.card-overlay-close {
+	position: fixed;
+	top: 12px;
+	right: 12px;
+	z-index: 1;
+	display: grid;
+	place-items: center;
+	width: 40px;
+	height: 40px;
+	padding: 0;
+	border: 1px solid rgb(255 255 255 / 0.35);
+	border-radius: 50%;
+	background: rgb(10 11 14 / 0.75);
+	color: var(--text);
+	cursor: pointer;
+}
+
+.card-overlay-close:hover,
+.card-overlay-close:focus-visible {
+	background: rgb(10 11 14 / 0.95);
+	border-color: var(--text);
+}
+
+.card-overlay-close svg {
+	width: 60%;
+	height: 60%;
+}

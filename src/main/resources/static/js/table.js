@@ -16,6 +16,7 @@ connectToGame({
 	onState(message) {
 		document.getElementById('join-address').textContent = `${message.serverAddress}/joueur`;
 		renderGame(message.game);
+		closeSettingsIfPlayerGone(message.game);
 	},
 	// Après une coupure, le serveur renvoie la carte affichée s'il y en a encore une
 	onOpen: hideCard,
@@ -62,6 +63,14 @@ function hideCard() {
 	cardOverlay.hidden = true;
 }
 
+// Fermeture manuelle : on masque tout de suite, et le serveur annule sa minuterie et prévient les téléphones
+document.getElementById('card-overlay-close').addEventListener('click', () => {
+	hideCard();
+	fetch('/api/cards/hide', { method: 'POST' }).catch(() => {
+		// Injoignable : la carte reste masquée ici, la fermeture automatique du serveur fera le reste
+	});
+});
+
 /** Barre qui se vide jusqu'à la fermeture automatique, décidée par le serveur. */
 function startProgressBar(remainingMs, durationMs) {
 	const bar = document.getElementById('card-overlay-progress-bar');
@@ -91,6 +100,14 @@ function buildPanels(game) {
 		const root = playerTemplate.content.firstElementChild.cloneNode(true);
 		root.dataset.player = String(player.id);
 		root.querySelector('.player-name').textContent = player.name;
+		const settingsButton = root.querySelector('.player-settings');
+		settingsButton.setAttribute('aria-label', `Paramètres de ${player.name}`);
+		settingsButton.addEventListener('click', () => openSettings({
+			title: player.name,
+			url: `/joueur?embedded=true&playerId=${player.id}`,
+			playerId: player.id,
+			opener: settingsButton,
+		}));
 
 		const damageList = root.querySelector('.commander-damage');
 		const damageAmounts = new Map();
@@ -160,8 +177,78 @@ function updatePanel(panel, player) {
 	}
 }
 
+// --- Fenêtres de configuration : /config et /joueur dans une iframe, sans quitter la table
+
+const settingsDialog = document.getElementById('settings-dialog');
+const settingsFrame = document.getElementById('settings-frame');
+/** Joueur affiché dans la modale, ou null pour /config. */
+let settingsPlayerId = null;
+let settingsOpener = null;
+
+function openSettings({ title, url, playerId = null, opener }) {
+	if (settingsDialog.open) {
+		return;
+	}
+	settingsPlayerId = playerId;
+	settingsOpener = opener;
+	document.getElementById('settings-title').textContent = title;
+	settingsFrame.title = title;
+	settingsFrame.src = url;
+	document.body.classList.add('settings-open');
+	settingsDialog.showModal();
+	document.getElementById('settings-close').focus();
+}
+
+// Aussi déclenché par Échap (natif) : on libère l'iframe, donc sa connexion WebSocket
+settingsDialog.addEventListener('close', () => {
+	settingsFrame.src = 'about:blank';
+	settingsPlayerId = null;
+	document.body.classList.remove('settings-open');
+	settingsOpener?.focus();
+	settingsOpener = null;
+});
+
+settingsFrame.addEventListener('load', () => {
+	// Échap pressé dans l'iframe n'atteint pas le <dialog> ; un panneau interne ouvert se ferme d'abord
+	settingsFrame.contentWindow?.addEventListener('keydown', (event) => {
+		if (event.key === 'Escape' && !settingsFrame.contentDocument.querySelector('.card-search:not([hidden])')) {
+			settingsDialog.close();
+		}
+	}, true);
+});
+
+document.getElementById('settings-close').addEventListener('click', () => settingsDialog.close());
+document.getElementById('open-cards').addEventListener('click', (event) => openSettings({
+	title: 'Cartes',
+	url: '/joueur?embedded=cards',
+	opener: event.currentTarget,
+}));
+// La recherche intégrée signale sa fin (carte envoyée ou annulation) : seul l'iframe ouvert, de même origine
+window.addEventListener('message', (event) => {
+	if (event.origin === location.origin
+		&& event.source === settingsFrame.contentWindow
+		&& event.data?.type === 'mtg-companion:close-embedded') {
+		settingsDialog.close();
+	}
+});
+document.getElementById('open-config').addEventListener('click', (event) => openSettings({
+	title: 'Configuration',
+	url: '/config?embedded=true',
+	opener: event.currentTarget,
+}));
+
+function closeSettingsIfPlayerGone(game) {
+	if (settingsDialog.open && settingsPlayerId !== null
+		&& !game.players.some((player) => player.id === settingsPlayerId)) {
+		settingsDialog.close();
+	}
+}
+
 // Double-clic (ou double-tap sur tablette) : plein écran, pratique sur une télé
-document.addEventListener('dblclick', () => {
+document.addEventListener('dblclick', (event) => {
+	if (event.target.closest('.settings-button, .settings-dialog')) {
+		return;
+	}
 	if (document.fullscreenElement) {
 		document.exitFullscreen();
 	} else {
