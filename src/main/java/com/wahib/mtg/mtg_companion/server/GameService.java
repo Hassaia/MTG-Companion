@@ -10,6 +10,8 @@ import org.springframework.web.socket.WebSocketSession;
 import java.util.Map;
 
 import com.wahib.mtg.mtg_companion.cards.CardService;
+import com.wahib.mtg.mtg_companion.decks.DeckService;
+import com.wahib.mtg.mtg_companion.decks.DecksUnavailableException;
 import com.wahib.mtg.mtg_companion.game.Game;
 import com.wahib.mtg.mtg_companion.game.GameSettings;
 import com.wahib.mtg.mtg_companion.game.GameSnapshot;
@@ -34,14 +36,16 @@ public class GameService {
 	private final GameBroadcaster broadcaster;
 	private final CardService cardService;
 	private final PlayerArtService art;
+	private final DeckService deckService;
 	private Game game;
 
 	public GameService(GameStateStore store, GameBroadcaster broadcaster, CardService cardService,
-			PlayerArtService art) {
+			PlayerArtService art, DeckService deckService) {
 		this.store = store;
 		this.broadcaster = broadcaster;
 		this.cardService = cardService;
 		this.art = art;
+		this.deckService = deckService;
 		this.game = loadOrCreateGame();
 		seedFramingsFromSavedBackgrounds();
 	}
@@ -68,12 +72,15 @@ public class GameService {
 			case ClientMessage.StartGame action -> {
 				Game next = new Game(new GameSettings(action.format(), action.startingLife(), action.players()));
 				next.keepBackgroundsOf(game);
+				next.keepDecksOf(game);
 				applyFramingsOfLayout(next);
 				game = next;
 			}
 			case ClientMessage.Reset ignored -> game.reset();
 			case ClientMessage.SetPlayerBackground action -> setBackground(action);
 			case ClientMessage.ClearPlayerBackground action -> game.setBackground(action.player(), null);
+			case ClientMessage.SetPlayerDeck action -> setDeck(action);
+			case ClientMessage.ClearPlayerDeck action -> game.setDeck(action.player(), null);
 		}
 		GameSnapshot snapshot = game.snapshot();
 		save(snapshot);
@@ -109,6 +116,23 @@ public class GameService {
 
 	public synchronized GameSnapshot snapshot() {
 		return game.snapshot();
+	}
+
+	/** Le deck doit exister dans le catalogue MTGJSON ; sans catalogue accessible, le choix est refusé. */
+	private void setDeck(ClientMessage.SetPlayerDeck action) {
+		game.player(action.player());
+		if (!DeckService.isValidId(action.deckId())) {
+			throw new InvalidActionException("Deck inconnu");
+		}
+		try {
+			if (deckService.find(action.deckId()).isEmpty()) {
+				throw new InvalidActionException("Deck inconnu");
+			}
+		}
+		catch (DecksUnavailableException e) {
+			throw new InvalidActionException(e.getMessage());
+		}
+		game.setDeck(action.player(), action.deckId());
 	}
 
 	/**

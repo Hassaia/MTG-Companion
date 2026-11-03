@@ -5,6 +5,7 @@ import java.net.http.HttpClient;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -88,6 +89,18 @@ public class ScryfallClient {
 	 */
 	public Optional<JsonNode> findByCollectorNumber(String setCode, String collectorNumber, String lang) {
 		return getJson(generalLane, List.of("cards", setCode, collectorNumber, lang), Map.of());
+	}
+
+	/** Noms de toutes les éditions, par code d'édition (en minuscules) ; une seule requête, environ 600 Ko. */
+	public Map<String, String> setNames() {
+		Map<String, String> names = new LinkedHashMap<>();
+		getJson(generalLane, List.of("sets"), Map.of())
+				.ifPresent(list -> elements(list.get("data")).forEach(set -> {
+					if (set.get("code") != null && set.get("name") != null) {
+						names.put(set.get("code").asString(), set.get("name").asString());
+					}
+				}));
+		return names;
 	}
 
 	/** Impression précise, par son identifiant Scryfall. */

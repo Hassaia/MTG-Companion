@@ -19,7 +19,9 @@ import com.wahib.mtg.mtg_companion.userimages.Framing;
 		@JsonSubTypes.Type(value = ClientMessage.StartGame.class, name = "START_GAME"),
 		@JsonSubTypes.Type(value = ClientMessage.Reset.class, name = "RESET"),
 		@JsonSubTypes.Type(value = ClientMessage.SetPlayerBackground.class, name = "SET_PLAYER_BACKGROUND"),
-		@JsonSubTypes.Type(value = ClientMessage.ClearPlayerBackground.class, name = "CLEAR_PLAYER_BACKGROUND")
+		@JsonSubTypes.Type(value = ClientMessage.ClearPlayerBackground.class, name = "CLEAR_PLAYER_BACKGROUND"),
+		@JsonSubTypes.Type(value = ClientMessage.SetPlayerDeck.class, name = "SET_PLAYER_DECK"),
+		@JsonSubTypes.Type(value = ClientMessage.ClearPlayerDeck.class, name = "CLEAR_PLAYER_DECK")
 })
 public sealed interface ClientMessage {
 
@@ -50,5 +52,12 @@ public sealed interface ClientMessage {
 	}
 
 	record ClearPlayerBackground(int player) implements ClientMessage {
+	}
+
+	/** Choisit le préconstruit officiel d'un joueur ; {@code deckId} est le {@code fileName} MTGJSON du catalogue. */
+	record SetPlayerDeck(int player, String deckId) implements ClientMessage {
+	}
+
+	record ClearPlayerDeck(int player) implements ClientMessage {
 	}
 }

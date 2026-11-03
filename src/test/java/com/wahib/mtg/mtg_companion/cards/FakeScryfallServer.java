@@ -18,12 +18,12 @@ import com.sun.net.httpserver.HttpServer;
  * enregistrées et note chaque requête reçue. Les adresses d'images des fixtures sont réécrites
  * pour pointer vers lui.
  */
-final class FakeScryfallServer implements AutoCloseable {
+public final class FakeScryfallServer implements AutoCloseable {
 
-	static final byte[] IMAGE_BYTES = "fausse image jpeg".getBytes(StandardCharsets.UTF_8);
+	public static final byte[] IMAGE_BYTES = "fausse image jpeg".getBytes(StandardCharsets.UTF_8);
 	private static final String REAL_IMAGE_HOST = "https://cards.scryfall.io";
 
-	record ReceivedRequest(String path, Map<String, String> parameters, String userAgent, String accept, long nanoTime) {
+	public record ReceivedRequest(String path, Map<String, String> parameters, String userAgent, String accept, long nanoTime) {
 	}
 
 	private record Stub(String path, Map<String, String> parameters, int status, String body) {
@@ -33,18 +33,18 @@ final class FakeScryfallServer implements AutoCloseable {
 	private final List<Stub> stubs = new CopyOnWriteArrayList<>();
 	private final List<ReceivedRequest> requests = new CopyOnWriteArrayList<>();
 
-	FakeScryfallServer() throws IOException {
+	public FakeScryfallServer() throws IOException {
 		server = HttpServer.create(new InetSocketAddress("localhost", 0), 0);
 		server.createContext("/", this::handle);
 		server.start();
 	}
 
-	String baseUrl() {
+	public String baseUrl() {
 		return "http://localhost:" + server.getAddress().getPort();
 	}
 
 	/** Répond {@code status} avec la fixture donnée quand le chemin et tous les paramètres indiqués correspondent. */
-	FakeScryfallServer stub(String path, Map<String, String> parameters, int status, String fixtureName) {
+	public FakeScryfallServer stub(String path, Map<String, String> parameters, int status, String fixtureName) {
 		String body = ScryfallFixtures.text(fixtureName).replace(REAL_IMAGE_HOST, baseUrl() + "/images");
 		stubs.add(new Stub(path, parameters, status, body));
 		return this;
@@ -59,7 +59,7 @@ final class FakeScryfallServer implements AutoCloseable {
 		return this;
 	}
 
-	FakeScryfallServer stubBody(String path, Map<String, String> parameters, String body) {
+	public FakeScryfallServer stubBody(String path, Map<String, String> parameters, String body) {
 		stubs.add(new Stub(path, parameters, 200, body));
 		return this;
 	}
@@ -70,7 +70,7 @@ final class FakeScryfallServer implements AutoCloseable {
 				.count();
 	}
 
-	List<ReceivedRequest> requests() {
+	public List<ReceivedRequest> requests() {
 		return List.copyOf(requests);
 	}
 

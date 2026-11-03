@@ -10,6 +10,9 @@ user-images/
 
 ### Cache des cartes Scryfall ###
 card-cache/
+
+### Cache des decks MTGJSON ###
+deck-cache/
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/

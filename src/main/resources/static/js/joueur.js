@@ -3,6 +3,7 @@ import { initRulings } from './rulings.js';
 import { connectToGame } from './connection.js';
 import { LifeChangeIndicator } from './life-change.js';
 import { initZoneBackground } from './zone-background.js';
+import { initDeckPicker, updateMyDeck } from './deck-picker.js';
 
 /**
  * Les dégâts de commandant sont affichés « à l'envers » : chaque adversaire part d'une réserve de
@@ -162,6 +163,7 @@ function renderPlayScreen(me) {
 	}
 
 	renderOpponents(me);
+	updateMyDeck(me);
 
 	const ownLife = document.getElementById('own-life');
 	ownLife.classList.toggle('eliminated', me.eliminated);
@@ -293,6 +295,11 @@ if (CARDS_ONLY) {
 }
 
 initRulings();
+
+initDeckPicker({
+	getMe: () => currentGame?.players.find((player) => player.id === selectedPlayerId) ?? null,
+	send: sendAction,
+});
 
 initZoneBackground({
 	getMe: () => currentGame?.players.find((player) => player.id === selectedPlayerId) ?? null,

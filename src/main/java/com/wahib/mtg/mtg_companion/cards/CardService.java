@@ -395,7 +395,15 @@ public class CardService {
 		}
 		String url = thumbnailUrls.get(printId);
 		if (url == null) {
-			return Optional.empty();
+			// Impression qui n'est passée par aucune grille d'illustrations (carte d'un deck) : Scryfall la décrit
+			url = scryfall.findById(printId)
+					.flatMap(ScryfallCardMapper::illustration)
+					.map(Illustration::thumbnailUrl)
+					.orElse(null);
+			if (url == null) {
+				return Optional.empty();
+			}
+			thumbnailUrls.put(printId, url);
 		}
 		byte[] content = scryfall.downloadImage(url);
 		try {

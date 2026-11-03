@@ -38,6 +38,7 @@ public class Game {
 			}
 			player.setLife(saved.life());
 			player.setBackground(saved.background());
+			player.setDeckId(saved.deckId());
 			for (Map.Entry<Integer, Integer> entry : saved.commanderDamage().entrySet()) {
 				int opponentId = entry.getKey();
 				game.requireCommanderDamageAllowed(player.id(), opponentId);
@@ -91,6 +92,29 @@ public class Game {
 		player(playerId).setBackground(background);
 	}
 
+	public void setDeck(int playerId, String deckId) {
+		player(playerId).setDeckId(deckId);
+	}
+
+	/**
+	 * Une nouvelle partie garde le deck des joueurs qui y retrouvent leur nom (sans tenir compte de la casse),
+	 * même s'ils changent de place. Un joueur remplacé (autre nom) ne reçoit pas l'ancien deck de la place.
+	 * Deux joueurs de même nom : le premier prend le premier deck, le second le suivant.
+	 */
+	public void keepDecksOf(Game previous) {
+		List<Player> available = new ArrayList<>(previous.players);
+		for (Player player : players) {
+			Player former = available.stream()
+					.filter(candidate -> candidate.name().equalsIgnoreCase(player.name()))
+					.findFirst()
+					.orElse(null);
+			if (former != null) {
+				available.remove(former);
+				player.setDeckId(former.deckId());
+			}
+		}
+	}
+
 	/** Une nouvelle partie garde les illustrations des joueurs qui y retrouvent leur place (même numéro). */
 	public void keepBackgroundsOf(Game previous) {
 		for (Player player : players) {
@@ -117,7 +141,7 @@ public class Game {
 	public GameSnapshot snapshot() {
 		List<GameSnapshot.PlayerSnapshot> playerSnapshots = players.stream()
 				.map(player -> new GameSnapshot.PlayerSnapshot(player.id(), player.name(), player.life(),
-						player.isEliminated(), player.commanderDamageReceived(), player.background()))
+						player.isEliminated(), player.commanderDamageReceived(), player.background(), player.deckId()))
 				.toList();
 		return new GameSnapshot(settings.format(), settings.startingLife(), playerSnapshots);
 	}

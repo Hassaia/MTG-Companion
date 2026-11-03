@@ -19,9 +19,10 @@ public record GameSnapshot(Format format, int startingLife, List<PlayerSnapshot>
 	/**
 	 * @param eliminated calculé à partir des PV et des dégâts ; ignoré lors d'une restauration
 	 * @param background illustration choisie pour la zone du joueur, ou null (fond par défaut)
+	 * @param deckId identifiant MTGJSON du préconstruit choisi, ou null (absent d'une ancienne sauvegarde)
 	 */
 	public record PlayerSnapshot(int id, String name, int life, boolean eliminated,
-			Map<Integer, Integer> commanderDamage, Background background) {
+			Map<Integer, Integer> commanderDamage, Background background, String deckId) {
 
 		public PlayerSnapshot {
 			// TreeMap : adversaires triés par numéro, pour un affichage stable
@@ -29,8 +30,13 @@ public record GameSnapshot(Format format, int startingLife, List<PlayerSnapshot>
 					: Collections.unmodifiableMap(new TreeMap<>(commanderDamage));
 		}
 
+		public PlayerSnapshot(int id, String name, int life, boolean eliminated, Map<Integer, Integer> commanderDamage,
+				Background background) {
+			this(id, name, life, eliminated, commanderDamage, background, null);
+		}
+
 		public PlayerSnapshot(int id, String name, int life, boolean eliminated, Map<Integer, Integer> commanderDamage) {
-			this(id, name, life, eliminated, commanderDamage, null);
+			this(id, name, life, eliminated, commanderDamage, null, null);
 		}
 	}
 

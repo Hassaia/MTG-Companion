@@ -349,6 +349,102 @@ class GameTest {
 	}
 
 	@Nested
+	class Decks {
+
+		private Game game(String... names) {
+			return new Game(new GameSettings(Format.COMMANDER, 40, List.of(names)));
+		}
+
+		@Test
+		void playersHaveNoDeckByDefault() {
+			assertThat(game("A", "B").snapshot().players()).allSatisfy(player -> assertThat(player.deckId()).isNull());
+		}
+
+		@Test
+		void eachPlayerHasHisOwnDeckAndRemovalOnlyAffectsHim() {
+			Game game = game("A", "B", "C");
+			game.setDeck(1, "DeckOne_AAA");
+			game.setDeck(3, "DeckThree_CCC");
+
+			game.setDeck(1, null);
+
+			assertThat(game.snapshot().players()).extracting(GameSnapshot.PlayerSnapshot::deckId)
+					.containsExactly(null, null, "DeckThree_CCC");
+		}
+
+		@Test
+		void unknownPlayerIsRejected() {
+			assertThatThrownBy(() -> game("A", "B").setDeck(5, "X_YYY")).isInstanceOf(InvalidActionException.class);
+		}
+
+		@Test
+		void decksSurviveASnapshotRestore() {
+			Game game = game("A", "B");
+			game.setDeck(2, "DeckTwo_BBB");
+
+			assertThat(Game.restore(game.snapshot()).snapshot()).isEqualTo(game.snapshot());
+			assertThat(Game.restore(game.snapshot()).player(2).deckId()).isEqualTo("DeckTwo_BBB");
+		}
+
+		@Test
+		void oldSnapshotWithoutDeckIsRestoredWithoutDeck() {
+			GameSnapshot old = new GameSnapshot(Format.COMMANDER, 40, List.of(
+					new GameSnapshot.PlayerSnapshot(1, "A", 40, false, Map.of(2, 0)),
+					new GameSnapshot.PlayerSnapshot(2, "B", 40, false, Map.of(1, 0))));
+
+			assertThat(Game.restore(old).player(1).deckId()).isNull();
+		}
+
+		@Test
+		void aPlayerKeepsHisDeckWhenHeChangesSeat() {
+			Game previous = game("Alice", "Bob", "Carole");
+			previous.setDeck(1, "Alice_AAA");
+			previous.setDeck(3, "Carole_CCC");
+			Game next = game("Carole", "Alice", "Bob");
+
+			next.keepDecksOf(previous);
+
+			assertThat(next.snapshot().players()).extracting(GameSnapshot.PlayerSnapshot::deckId)
+					.containsExactly("Carole_CCC", "Alice_AAA", null);
+		}
+
+		@Test
+		void aReplacedPlayerDoesNotInheritTheDeckOfTheSeat() {
+			Game previous = game("Alice", "Bob");
+			previous.setDeck(2, "Bob_BBB");
+			Game next = game("Alice", "Dave");
+
+			next.keepDecksOf(previous);
+
+			assertThat(next.player(2).deckId()).isNull();
+		}
+
+		@Test
+		void namesAreComparedIgnoringCaseAndSurplusPlayersAreIgnored() {
+			Game previous = game("Alice", "Bob");
+			previous.setDeck(1, "Alice_AAA");
+			Game next = game("ALICE", "Bob", "Eve", "Zoe");
+
+			next.keepDecksOf(previous);
+
+			assertThat(next.player(1).deckId()).isEqualTo("Alice_AAA");
+			assertThat(next.player(3).deckId()).isNull();
+		}
+
+		@Test
+		void twoPlayersWithTheSameNameDoNotShareOneDeck() {
+			Game previous = game("Sam", "Bob");
+			previous.setDeck(1, "Sam_SSS");
+			Game next = game("Sam", "Sam");
+
+			next.keepDecksOf(previous);
+
+			assertThat(next.player(1).deckId()).isEqualTo("Sam_SSS");
+			assertThat(next.player(2).deckId()).isNull();
+		}
+	}
+
+	@Nested
 	class Backgrounds {
 
 		private static final String PRINT_ID = "bba5ea18-4e58-42a8-b613-2178706476a6";

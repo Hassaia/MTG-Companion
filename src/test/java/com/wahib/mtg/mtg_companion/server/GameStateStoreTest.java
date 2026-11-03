@@ -45,6 +45,31 @@ class GameStateStoreTest {
 	}
 
 	@Test
+	void selectedDecksAreSavedAndRestored() throws Exception {
+		Game game = new Game(new GameSettings(Format.COMMANDER, 40, List.of("Alice", "Bob")));
+		game.setDeck(2, "LimitBreakFinalFantasyVii_FIC");
+
+		store().save(game.snapshot());
+		Game restored = Game.restore(store().load().orElseThrow());
+
+		assertThat(restored.player(1).deckId()).isNull();
+		assertThat(restored.player(2).deckId()).isEqualTo("LimitBreakFinalFantasyVii_FIC");
+	}
+
+	@Test
+	void saveFromBeforeDecksExistedStillLoads() throws Exception {
+		Files.writeString(directory.resolve("state.json"), """
+				{"format":"COMMANDER","startingLife":40,"players":[
+				 {"id":1,"name":"Alice","life":33,"eliminated":false,"commanderDamage":{"2":0}},
+				 {"id":2,"name":"Bob","life":40,"eliminated":false,"commanderDamage":{"1":0}}]}""");
+
+		Game restored = Game.restore(store().load().orElseThrow());
+
+		assertThat(restored.player(1).life()).isEqualTo(33);
+		assertThat(restored.player(1).deckId()).isNull();
+	}
+
+	@Test
 	void saveOverwritesPreviousState() throws Exception {
 		Game game = new Game(new GameSettings(Format.STANDARD, 20, List.of("", "")));
 		store().save(game.snapshot());

@@ -1,0 +1,54 @@
+{
+ "meta": {
+  "date": "2026-11-03",
+  "version": "5.3.0"
+ },
+ "data": {
+  "code": "FIC",
+  "name": "Revival Trance (FINAL FANTASY VI)",
+  "releaseDate": "2025-06-13",
+  "type": "Commander Deck",
+  "commander": [
+   {
+    "count": 1,
+    "name": "Terra, Herald of Hope",
+    "setCode": "FIC",
+    "number": "5",
+    "layout": "normal",
+    "identifiers": {
+     "scryfallId": "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee1"
+    },
+    "foreignData": [
+     {
+      "language": "French",
+      "name": "xxxxx"
+     }
+    ],
+    "rulings": []
+   }
+  ],
+  "mainBoard": [
+   {
+    "count": 30,
+    "name": "Forest",
+    "setCode": "FIC",
+    "number": "312",
+    "layout": "normal",
+    "identifiers": {
+     "scryfallId": "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee2"
+    },
+    "foreignData": [
+     {
+      "language": "French",
+      "name": "xxxxx"
+     }
+    ],
+    "rulings": []
+   }
+  ],
+  "sideBoard": [],
+  "tokens": [],
+  "planes": [],
+  "schemes": []
+ }
+}
