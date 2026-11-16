@@ -1,0 +1,41 @@
+<!--
+  Configuration WinSW du service Windows "MTG Companion".
+
+  Ce fichier est un modèle : install-service.ps1 remplace les marqueurs
+  @JAVA@ et @PORT@ puis l'enregistre sous le nom mtg-companion.xml dans
+  le dossier d'installation (C:\MTG-Companion par défaut).
+
+  %BASE% est une variable de WinSW : elle désigne le dossier qui contient
+  mtg-companion.exe, c'est-à-dire le dossier d'installation.
+
+  Documentation WinSW : https://github.com/winsw/winsw/tree/v2.12.0/doc
+-->
+<service>
+  <!-- Nom technique du service (utilisé par sc.exe, services.msc, etc.) -->
+  <id>mtg-companion</id>
+  <!-- Nom affiché dans services.msc -->
+  <name>MTG Companion</name>
+  <description>Compteur de points de vie pour Magic: The Gathering (application web Spring Boot).</description>
+
+  <!-- Chemin complet de java.exe, trouvé par le script d'installation -->
+  <executable>@JAVA@</executable>
+  <!-- Le port est passé en argument pour être sûr qu'il correspond à la règle du pare-feu -->
+  <arguments>-jar "%BASE%\mtg-companion.jar" --server.port=@PORT@</arguments>
+  <!-- Dossier courant de l'application : les éventuels fichiers de données y seront créés -->
+  <workingdirectory>%BASE%</workingdirectory>
+
+  <!-- Démarrage automatique au lancement de Windows, sans ouverture de session -->
+  <startmode>Automatic</startmode>
+
+  <!-- Si l'application plante, WinSW la relance après 10 secondes -->
+  <onfailure action="restart" delay="10 sec"/>
+  <!-- Délai laissé à Spring Boot pour s'arrêter proprement -->
+  <stoptimeout>15 sec</stoptimeout>
+
+  <!-- Journaux dans %BASE%\logs : 5 fichiers de 10 Mo maximum par flux -->
+  <logpath>%BASE%\logs</logpath>
+  <log mode="roll-by-size">
+    <sizeThreshold>10240</sizeThreshold>
+    <keepFiles>5</keepFiles>
+  </log>
+</service>
