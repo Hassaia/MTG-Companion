@@ -13,6 +13,7 @@ import com.wahib.mtg.mtg_companion.cards.CardService;
 import com.wahib.mtg.mtg_companion.decks.DeckService;
 import com.wahib.mtg.mtg_companion.decks.DecksUnavailableException;
 import com.wahib.mtg.mtg_companion.game.Game;
+import com.wahib.mtg.mtg_companion.game.GameLog;
 import com.wahib.mtg.mtg_companion.game.GameSettings;
 import com.wahib.mtg.mtg_companion.game.GameSnapshot;
 import com.wahib.mtg.mtg_companion.game.InvalidActionException;
@@ -38,6 +39,7 @@ public class GameService {
 	private final PlayerArtService art;
 	private final DeckService deckService;
 	private Game game;
+	private final GameLog gameLog = new GameLog();
 
 	public GameService(GameStateStore store, GameBroadcaster broadcaster, CardService cardService,
 			PlayerArtService art, DeckService deckService) {
@@ -53,6 +55,7 @@ public class GameService {
 	public synchronized void connect(WebSocketSession session) {
 		broadcaster.register(session);
 		broadcaster.sendState(session, game.snapshot());
+		broadcaster.send(session, logMessage());
 	}
 
 	public synchronized void disconnect(WebSocketSession session) {
@@ -65,18 +68,45 @@ public class GameService {
 	 * @throws InvalidActionException si l'action est refusée ; l'état n'est alors pas modifié
 	 */
 	public synchronized void handle(ClientMessage message) {
+		Game.Checkpoint before = game.checkpoint();
+		int turn = game.turn();
+		int active = game.activePlayerId();
 		switch (message) {
-			case ClientMessage.ChangeLife action -> game.changeLife(action.player(), action.delta());
-			case ClientMessage.ChangeCommanderDamage action ->
-					game.changeCommanderDamage(action.player(), action.fromPlayer(), action.delta());
+			case ClientMessage.ChangeLife action -> {
+				game.changeLife(action.player(), action.delta());
+				gameLog.record(GameLog.LIFE, turn, active, action.player(), 0, action.delta(), before);
+			}
+			case ClientMessage.ChangeCommanderDamage action -> {
+				game.changeCommanderDamage(action.player(), action.fromPlayer(), action.delta());
+				gameLog.record(GameLog.COMMANDER_DAMAGE, turn, active, action.player(), action.fromPlayer(),
+						action.delta(), before);
+			}
 			case ClientMessage.StartGame action -> {
 				Game next = new Game(new GameSettings(action.format(), action.startingLife(), action.players()));
+				if (action.firstPlayer() != null) {
+					next.setActivePlayer(action.firstPlayer());
+				}
 				next.keepBackgroundsOf(game);
 				next.keepDecksOf(game);
 				applyFramingsOfLayout(next);
 				game = next;
+				gameLog.clear();
 			}
-			case ClientMessage.Reset ignored -> game.reset();
+			case ClientMessage.Reset ignored -> {
+				game.reset();
+				gameLog.clear();
+			}
+			case ClientMessage.NextTurn ignored -> {
+				game.nextTurn();
+				gameLog.record(GameLog.NEXT_TURN, turn, active, game.activePlayerId(), 0, 0, before);
+			}
+			case ClientMessage.SetActivePlayer action -> {
+				game.setActivePlayer(action.player());
+				gameLog.record(GameLog.SET_ACTIVE, turn, active, action.player(), 0, 0, before);
+			}
+			case ClientMessage.SetSurvivesAtZero action ->
+					game.setSurvivesAtZero(action.player(), action.enabled());
+			case ClientMessage.UndoTo action -> game.rollbackTo(gameLog.undoTo(action.entryId()));
 			case ClientMessage.SetPlayerBackground action -> setBackground(action);
 			case ClientMessage.ClearPlayerBackground action -> game.setBackground(action.player(), null);
 			case ClientMessage.SetPlayerDeck action -> setDeck(action);
@@ -84,7 +114,17 @@ public class GameService {
 		}
 		GameSnapshot snapshot = game.snapshot();
 		save(snapshot);
+		boolean drawn = message instanceof ClientMessage.Reset
+				|| message instanceof ClientMessage.StartGame start && start.firstPlayer() == null;
+		if (drawn) {
+			broadcaster.broadcast(new ServerMessage.Draw());
+		}
 		broadcaster.broadcastState(snapshot);
+		broadcaster.broadcast(logMessage());
+	}
+
+	private ServerMessage.Log logMessage() {
+		return new ServerMessage.Log(game.turn(), gameLog.entries());
 	}
 
 	/**

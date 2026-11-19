@@ -25,6 +25,110 @@ class GameTest {
 	}
 
 	@Nested
+	class Tour {
+
+		@Test
+		void lePremierJoueurEstTireAuSortParmiLesJoueurs() {
+			for (int essai = 0; essai < 50; essai++) {
+				assertThat(commanderGame(4).activePlayerId()).isBetween(1, 4);
+			}
+		}
+
+		@Test
+		void leTourPasseAuJoueurSuivantPuisRevientAuPremier() {
+			Game game = commanderGame(3);
+			game.setActivePlayer(2);
+
+			game.nextTurn();
+			assertThat(game.activePlayerId()).isEqualTo(3);
+			game.nextTurn();
+			assertThat(game.activePlayerId()).isEqualTo(1);
+		}
+
+		@Test
+		void leNumeroDeTourAugmenteQuandOnRevientAuJoueurQuiACommence() {
+			Game game = commanderGame(3);
+			game.setActivePlayer(2);
+
+			game.nextTurn(); // joueur 3
+			assertThat(game.turn()).isEqualTo(1);
+			game.nextTurn(); // joueur 1
+			assertThat(game.turn()).isEqualTo(1);
+			game.nextTurn(); // joueur 2 : deuxième tour de table
+			assertThat(game.activePlayerId()).isEqualTo(2);
+			assertThat(game.turn()).isEqualTo(2);
+		}
+
+		@Test
+		void leNumeroDeTourAugmenteMemeSiLeJoueurQuiACommenceEstElimine() {
+			Game game = commanderGame(3);
+			game.setActivePlayer(1);
+			game.changeLife(1, -999);
+			game.changeLife(1, -999);
+
+			game.nextTurn(); // joueur 2
+			game.nextTurn(); // joueur 3
+			game.nextTurn(); // le joueur 1 est éliminé : retour au joueur 2
+
+			assertThat(game.activePlayerId()).isEqualTo(2);
+			assertThat(game.turn()).isEqualTo(2);
+		}
+
+		@Test
+		void unJoueurQuiSurvitAZeroPeutDescendreEnNegatifSansEtreElimine() {
+			Game game = commanderGame(2);
+			game.setSurvivesAtZero(1, true);
+
+			game.changeLife(1, -50);
+
+			assertThat(game.player(1).life()).isEqualTo(-10);
+			assertThat(game.player(1).isEliminated()).isFalse();
+			assertThat(Game.restore(game.snapshot()).player(1).survivesAtZero()).isTrue();
+
+			game.setSurvivesAtZero(1, false);
+			assertThat(game.player(1).isEliminated()).isTrue();
+		}
+
+		@Test
+		void unJoueurQuiNePeutPasPerdreSurvitAuxDegatsDeCommandantMortels() {
+			Game game = commanderGame(2);
+			game.setSurvivesAtZero(1, true);
+
+			game.changeCommanderDamage(1, 2, 21);
+
+			assertThat(game.player(1).isEliminated()).isFalse();
+
+			game.setSurvivesAtZero(1, false);
+			assertThat(game.player(1).isEliminated()).isTrue();
+		}
+
+		@Test
+		void leTourSauteLesJoueursEliminés() {
+			Game game = commanderGame(3);
+			game.changeLife(2, -999);
+			game.changeLife(2, -999);
+			game.setActivePlayer(1);
+
+			game.nextTurn();
+
+			assertThat(game.activePlayerId()).isEqualTo(3);
+		}
+
+		@Test
+		void unJoueurInexistantEstRefuse() {
+			assertThatThrownBy(() -> commanderGame(2).setActivePlayer(3)).isInstanceOf(InvalidActionException.class);
+		}
+
+		@Test
+		void leJoueurActifSurvitAUneSauvegarde() {
+			Game game = commanderGame(4);
+			game.setActivePlayer(3);
+
+			assertThat(Game.restore(game.snapshot()).activePlayerId()).isEqualTo(3);
+		}
+	}
+
+	@Nested
 	class Creation {
 
 		@ParameterizedTest

@@ -3,6 +3,7 @@ package com.wahib.mtg.mtg_companion.server;
 import java.util.List;
 
 import com.wahib.mtg.mtg_companion.cards.CardDisplayService;
+import com.wahib.mtg.mtg_companion.game.GameLog;
 import com.wahib.mtg.mtg_companion.game.GameSnapshot;
 
 /** Messages envoyés par le serveur aux navigateurs. */
@@ -16,6 +17,25 @@ public final class ServerMessage {
 
 		public State(ServerAddresses addresses, GameSnapshot game) {
 			this("STATE", addresses.primary(), addresses.others(), game);
+		}
+	}
+
+	/**
+	 * Un premier joueur vient d'être tiré au sort ; envoyé juste avant l'état qui désigne le joueur actif, pour que
+	 * la table joue l'animation du tirage avant de le révéler.
+	 */
+	public record Draw(String type) {
+
+		public Draw() {
+			this("DRAW");
+		}
+	}
+
+	/** Journal de la partie (de la plus ancienne à la plus récente action) et numéro du tour en cours. */
+	public record Log(String type, int turn, List<GameLog.Entry> entries) {
+
+		public Log(int turn, List<GameLog.Entry> entries) {
+			this("LOG", turn, entries);
 		}
 	}
 

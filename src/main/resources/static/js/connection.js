@@ -15,6 +15,8 @@ const FRESH_CONNECTION_AFTER_HIDDEN_MS = 3000;
  * @param {() => void} [handlers.onOpen]                      à chaque (re)connexion, avant l'état complet
  * @param {(message: object) => void} [handlers.onCardShown]  carte affichée sur la table (CARD_SHOWN)
  * @param {() => void} [handlers.onCardHidden]                carte fermée (CARD_HIDDEN)
+ * @param {() => void} [handlers.onDraw]                      tirage au sort du premier joueur (DRAW), juste avant son STATE
+ * @param {(message: object) => void} [handlers.onLog]       journal de la partie (LOG : turn, entries)
  * @returns {{ send: (message: object) => boolean }} send renvoie false si la connexion est coupée
  */
 export function connectToGame({
@@ -23,6 +25,8 @@ export function connectToGame({
 	onOpen = () => {},
 	onCardShown = () => {},
 	onCardHidden = () => {},
+	onLog = () => {},
+	onDraw = () => {},
 }) {
 	const statusElement = document.getElementById('connection-status');
 	let socket = null;
@@ -63,6 +67,12 @@ export function connectToGame({
 					break;
 				case 'ERROR':
 					onError(message.message);
+					break;
+				case 'DRAW':
+					onDraw();
+					break;
+				case 'LOG':
+					onLog(message);
 					break;
 				case 'CARD_SHOWN':
 					onCardShown(message);

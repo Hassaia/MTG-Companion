@@ -18,6 +18,8 @@ public class Player {
 	private GameSnapshot.Background background;
 	/** Préconstruit choisi (identifiant MTGJSON, ex. {@code LimitBreakFinalFantasyVii_FIC}), ou null. */
 	private String deckId;
+	/** Effet de carte en cours (Platinum Angel…) : ne peut pas perdre, même à 0 PV ou moins ou avec 21 dégâts de commandant. Remis à faux à chaque réinitialisation. */
+	private boolean survivesAtZero;
 
 	Player(int id, String name, int life) {
 		this.id = id;
@@ -45,9 +47,18 @@ public class Player {
 		return Collections.unmodifiableMap(commanderDamageReceived);
 	}
 
+	/** Un joueur sous l'effet « ne peut pas perdre » (Platinum Angel…) n'est jamais éliminé : ni PV, ni commandant. */
 	public boolean isEliminated() {
-		return life <= 0 || commanderDamageReceived.values().stream()
-				.anyMatch(damage -> damage >= Game.LETHAL_COMMANDER_DAMAGE);
+		return !survivesAtZero && (life <= 0 || commanderDamageReceived.values().stream()
+				.anyMatch(damage -> damage >= Game.LETHAL_COMMANDER_DAMAGE));
+	}
+
+	public boolean survivesAtZero() {
+		return survivesAtZero;
+	}
+
+	void setSurvivesAtZero(boolean survivesAtZero) {
+		this.survivesAtZero = survivesAtZero;
 	}
 
 	public GameSnapshot.Background background() {

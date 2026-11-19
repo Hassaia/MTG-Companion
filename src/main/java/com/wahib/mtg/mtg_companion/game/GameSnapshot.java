@@ -10,24 +10,38 @@ import java.util.regex.Pattern;
  * Photographie immuable de l'état complet d'une partie : c'est ce qui est diffusé aux clients
  * et sauvegardé sur disque.
  */
-public record GameSnapshot(Format format, int startingLife, List<PlayerSnapshot> players) {
+public record GameSnapshot(Format format, int startingLife, List<PlayerSnapshot> players, Integer activePlayer) {
 
 	public GameSnapshot {
 		players = List.copyOf(players);
+	}
+
+	/** Sans joueur actif : ancienne sauvegarde. */
+	public GameSnapshot(Format format, int startingLife, List<PlayerSnapshot> players) {
+		this(format, startingLife, players, null);
 	}
 
 	/**
 	 * @param eliminated calculé à partir des PV et des dégâts ; ignoré lors d'une restauration
 	 * @param background illustration choisie pour la zone du joueur, ou null (fond par défaut)
 	 * @param deckId identifiant MTGJSON du préconstruit choisi, ou null (absent d'une ancienne sauvegarde)
+	 * @param survivesAtZero effet en cours : le joueur n'est jamais éliminé (PV à 0 ou moins, dégâts de commandant)
 	 */
 	public record PlayerSnapshot(int id, String name, int life, boolean eliminated,
-			Map<Integer, Integer> commanderDamage, Background background, String deckId) {
+			Map<Integer, Integer> commanderDamage, Background background, String deckId, Boolean survivesAtZero) {
 
 		public PlayerSnapshot {
+			// Boolean et non boolean : une ancienne sauvegarde n'a pas ce champ, et Jackson refuse null pour un primitif
+			survivesAtZero = Boolean.TRUE.equals(survivesAtZero);
 			// TreeMap : adversaires triés par numéro, pour un affichage stable
 			commanderDamage = commanderDamage == null ? Map.of()
 					: Collections.unmodifiableMap(new TreeMap<>(commanderDamage));
+		}
+
+		/** Sans effet « ne peut pas perdre » : ancienne sauvegarde. */
+		public PlayerSnapshot(int id, String name, int life, boolean eliminated, Map<Integer, Integer> commanderDamage,
+				Background background, String deckId) {
+			this(id, name, life, eliminated, commanderDamage, background, deckId, false);
 		}
 
 		public PlayerSnapshot(int id, String name, int life, boolean eliminated, Map<Integer, Integer> commanderDamage,

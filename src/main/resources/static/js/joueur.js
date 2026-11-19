@@ -1,5 +1,6 @@
 import { hideCard, initCardSearch, openSendSearch } from './card-search.js';
 import { initRulings } from './rulings.js';
+import { initGameLog, refreshGameLog, updateLog } from './game-log.js';
 import { connectToGame } from './connection.js';
 import { LifeChangeIndicator } from './life-change.js';
 import { initZoneBackground } from './zone-background.js';
@@ -47,6 +48,11 @@ const connection = CARDS_ONLY ? null : connectToGame({
 	onState(message) {
 		currentGame = message.game;
 		render();
+		refreshGameLog();
+	},
+	onLog(message) {
+		document.getElementById('turn-number').textContent = `Tour ${message.turn} ·`;
+		updateLog(message);
 	},
 	onError: showToast,
 	// Après une coupure, le serveur renvoie la carte affichée s'il y en a encore une
@@ -163,8 +169,12 @@ function renderPlayScreen(me) {
 	}
 
 	renderOpponents(me);
+	renderTurn(me);
 	updateMyDeck(me);
 
+	const surviveToggle = document.getElementById('survive-toggle');
+	surviveToggle.dataset.player = String(me.id); // couleur du joueur quand le bouclier est allumé
+	surviveToggle.setAttribute('aria-pressed', String(me.survivesAtZero));
 	const ownLife = document.getElementById('own-life');
 	ownLife.classList.toggle('eliminated', me.eliminated);
 	document.getElementById('own-life-value').textContent = String(me.life);
@@ -177,12 +187,24 @@ function renderPlayScreen(me) {
 	}
 }
 
+function renderTurn(me) {
+	const active = currentGame.players.find((player) => player.id === currentGame.activePlayer);
+	const mine = active?.id === me.id;
+	const banner = document.getElementById('turn-banner');
+	banner.hidden = !active;
+	banner.classList.toggle('mine', mine);
+	document.getElementById('turn-text').textContent = mine ? 'À vous de jouer !' : `Tour de ${active?.name ?? ''}`;
+}
+
+document.getElementById('end-turn').addEventListener('click', () => sendAction({ type: 'NEXT_TURN' }));
+
 function renderOpponents(me) {
 	const opponents = currentGame.players.filter((player) => player.id !== me.id);
 	document.getElementById('opponents').replaceChildren(...opponents.map((opponent) => {
 		const item = document.createElement('li');
 		item.dataset.player = String(opponent.id);
 		item.classList.toggle('eliminated', opponent.eliminated);
+		item.classList.toggle('active-turn', opponent.id === currentGame.activePlayer);
 		const name = document.createElement('span');
 		name.className = 'opponent-name';
 		name.textContent = opponent.name;
@@ -255,6 +277,37 @@ function sendAction(message) {
 	}
 }
 
+// --- Fenêtre d'outils (carte, illustration, rulings, journal, deck) : se ferme dès qu'un outil s'ouvre
+
+const toolsMenu = document.getElementById('tools-menu');
+
+function closeTools() {
+	toolsMenu.hidden = true;
+}
+
+document.getElementById('open-tools').addEventListener('click', () => {
+	toolsMenu.hidden = false;
+});
+document.getElementById('close-tools').addEventListener('click', closeTools);
+toolsMenu.addEventListener('click', (event) => {
+	// Fond sombre, ou bouton d'outil (le module concerné ouvre son panneau avec son propre gestionnaire)
+	if (event.target === toolsMenu || event.target.closest('.open-card-search, #my-deck-change')) {
+		closeTools();
+	}
+});
+document.addEventListener('keydown', (event) => {
+	if (event.key === 'Escape' && !toolsMenu.hidden) {
+		closeTools();
+	}
+});
+
+document.getElementById('survive-toggle').addEventListener('click', (event) => {
+	if (selectedPlayerId !== null) {
+		const enabled = event.currentTarget.getAttribute('aria-pressed') !== 'true';
+		sendAction({ type: 'SET_SURVIVES_AT_ZERO', player: selectedPlayerId, enabled });
+	}
+});
+
 document.getElementById('life-buttons').addEventListener('click', (event) => {
 	const button = event.target.closest('button[data-delta]');
 	if (button && selectedPlayerId !== null) {
@@ -295,6 +348,7 @@ if (CARDS_ONLY) {
 }
 
 initRulings();
+initGameLog({ send: sendAction, game: () => currentGame });
 
 initDeckPicker({
 	getMe: () => currentGame?.players.find((player) => player.id === selectedPlayerId) ?? null,

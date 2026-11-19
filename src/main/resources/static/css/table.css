@@ -257,6 +257,25 @@ body {
 	letter-spacing: 0.08em;
 }
 
+/* Effet de carte : le joueur ne peut pas perdre, même à 0 PV ou moins */
+.survive-label {
+	display: none;
+	position: relative;
+	z-index: 1;
+	margin: 0;
+	padding: 0.3em 1em;
+	border-radius: 999px;
+	background: var(--surface-raised);
+	color: var(--text);
+	font-size: 3vmin;
+	font-size: 4.5cqmin;
+	font-weight: 700;
+}
+
+.player.survives .survive-label {
+	display: block;
+}
+
 .player.eliminated {
 	filter: grayscale(1);
 	opacity: 0.45;
@@ -269,6 +288,62 @@ body {
 
 .player.eliminated .eliminated-label {
 	display: block;
+}
+
+/* Joueur dont c'est le tour : cadre lumineux dans sa couleur, par-dessus l'illustration */
+.player.active-turn::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	border-radius: inherit;
+	box-shadow: inset 0 0 0 0.8vmin var(--player-color), inset 0 0 7vmin var(--player-color);
+	pointer-events: none;
+	animation: active-turn-pulse 2.4s ease-in-out infinite;
+}
+
+/*
+ * Tirage au sort du premier joueur : la zone éclairée est nettement mise en avant (voile coloré, cadre épais),
+ * les autres sont assombries. Le halo de la partie, plus discret, ne reprend qu'ensuite.
+ */
+.table.drawing .player {
+	transition: filter 0.08s, opacity 0.3s;
+}
+
+.table.drawing .player:not(.draw-highlight) {
+	filter: brightness(0.35) saturate(0.6);
+}
+
+.player.draw-highlight::before {
+	content: "";
+	position: absolute;
+	inset: 0;
+	z-index: 1;
+	border-radius: inherit;
+	background: color-mix(in srgb, var(--player-color) 30%, transparent);
+	box-shadow: inset 0 0 0 1.8vmin var(--player-color), inset 0 0 14vmin var(--player-color);
+	pointer-events: none;
+}
+
+.table.draw-done .player.draw-highlight::before {
+	animation: draw-winner-pop 0.6s ease-out;
+}
+
+@keyframes draw-winner-pop {
+	from {
+		background: color-mix(in srgb, var(--player-color) 75%, white);
+	}
+}
+
+@keyframes active-turn-pulse {
+	50% {
+		opacity: 0.6;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.player.active-turn::after {
+		animation: none;
+	}
 }
 
 .commander-damage {

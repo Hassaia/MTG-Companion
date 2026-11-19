@@ -3,6 +3,7 @@ package com.wahib.mtg.mtg_companion.game;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * Une partie et ses règles. Les joueurs sont numérotés de 1 à N.
@@ -17,6 +18,10 @@ public class Game {
 
 	private final GameSettings settings;
 	private final List<Player> players = new ArrayList<>();
+	private int activePlayerId;
+	/** Joueur qui a commencé : le numéro de tour augmente quand on revient à lui. */
+	private int firstPlayerId;
+	private int turn = 1;
 
 	public Game(GameSettings settings) {
 		this.settings = settings;
@@ -39,6 +44,7 @@ public class Game {
 			player.setLife(saved.life());
 			player.setBackground(saved.background());
 			player.setDeckId(saved.deckId());
+			player.setSurvivesAtZero(saved.survivesAtZero());
 			for (Map.Entry<Integer, Integer> entry : saved.commanderDamage().entrySet()) {
 				int opponentId = entry.getKey();
 				game.requireCommanderDamageAllowed(player.id(), opponentId);
@@ -47,6 +53,12 @@ public class Game {
 				}
 				player.setCommanderDamageFrom(opponentId, entry.getValue());
 			}
+		}
+		// Ancienne sauvegarde sans joueur actif, ou valeur incohérente : on garde le tirage au sort du constructeur
+		Integer active = snapshot.activePlayer();
+		if (active != null && active >= 1 && active <= game.players.size()) {
+			game.activePlayerId = active;
+			game.firstPlayerId = active;
 		}
 		return game;
 	}
@@ -92,6 +104,11 @@ public class Game {
 		player(playerId).setBackground(background);
 	}
 
+	/** Effet de carte : le joueur ne peut pas perdre (PV à 0 ou moins, dégâts de commandant mortels) ; les valeurs continuent de varier. */
+	public void setSurvivesAtZero(int playerId, boolean survivesAtZero) {
+		player(playerId).setSurvivesAtZero(survivesAtZero);
+	}
+
 	public void setDeck(int playerId, String deckId) {
 		player(playerId).setDeckId(deckId);
 	}
@@ -124,10 +141,87 @@ public class Game {
 		}
 	}
 
-	/** Remet la partie en cours à zéro : mêmes joueurs, PV de départ, aucun dégât de commandant. */
+	/** Joueur dont c'est le tour (numéro), tiré au sort au début de la partie. */
+	public int activePlayerId() {
+		return activePlayerId;
+	}
+
+	/** Numéro du tour en cours, à partir de 1 ; chaque passage au joueur suivant l'incrémente. */
+	public int turn() {
+		return turn;
+	}
+
+	/** Tire au sort le joueur qui commence. */
+	public void drawFirstPlayer() {
+		activePlayerId = ThreadLocalRandom.current().nextInt(players.size()) + 1;
+		firstPlayerId = activePlayerId;
+	}
+
+	/**
+	 * État de jeu (PV, dégâts de commandant, tour) à un instant donné, pour revenir en arrière après une erreur.
+	 * Les illustrations et les decks n'en font pas partie : un retour en arrière ne les touche pas.
+	 */
+	public record Checkpoint(Map<Integer, Integer> lives, Map<Integer, Map<Integer, Integer>> commanderDamage,
+			int activePlayerId, int firstPlayerId, int turn) {
+	}
+
+	public Checkpoint checkpoint() {
+		Map<Integer, Integer> lives = new java.util.HashMap<>();
+		Map<Integer, Map<Integer, Integer>> damage = new java.util.HashMap<>();
+		for (Player player : players) {
+			lives.put(player.id(), player.life());
+			damage.put(player.id(), Map.copyOf(player.commanderDamageReceived()));
+		}
+		return new Checkpoint(lives, damage, activePlayerId, firstPlayerId, turn);
+	}
+
+	public void rollbackTo(Checkpoint checkpoint) {
+		for (Player player : players) {
+			player.setLife(checkpoint.lives().get(player.id()));
+			for (Map.Entry<Integer, Integer> entry : checkpoint.commanderDamage().get(player.id()).entrySet()) {
+				player.setCommanderDamageFrom(entry.getKey(), entry.getValue());
+			}
+		}
+		activePlayerId = checkpoint.activePlayerId();
+		firstPlayerId = checkpoint.firstPlayerId();
+		turn = checkpoint.turn();
+	}
+
+	/** Donne la main à un joueur. Pendant le premier tour, c'est aussi lui qui est considéré comme ayant commencé. */
+	public void setActivePlayer(int playerId) {
+		activePlayerId = player(playerId).id();
+		if (turn == 1) {
+			firstPlayerId = activePlayerId;
+		}
+	}
+
+	/**
+	 * Passe au joueur suivant (par numéro), en sautant les joueurs éliminés tant qu'il en reste un en vie.
+	 * Le numéro de tour augmente quand le tour de table revient au joueur qui a commencé (ou le dépasse, s'il est éliminé).
+	 */
+	public void nextTurn() {
+		int count = players.size();
+		for (int step = 1; step <= count; step++) {
+			Player candidate = players.get((activePlayerId - 1 + step) % count);
+			if (!candidate.isEliminated()) {
+				int before = (activePlayerId - firstPlayerId + count) % count;
+				int after = (candidate.id() - firstPlayerId + count) % count;
+				activePlayerId = candidate.id();
+				if (after <= before) {
+					turn++;
+				}
+				return;
+			}
+		}
+	}
+
+	/** Remet la partie en cours à zéro : mêmes joueurs, PV de départ, aucun dégât de commandant, premier joueur tiré au sort. */
 	public void reset() {
+		drawFirstPlayer();
+		turn = 1;
 		for (Player player : players) {
 			player.setLife(settings.startingLife());
+			player.setSurvivesAtZero(false);
 			if (settings.format().commanderDamageEnabled()) {
 				for (Player opponent : players) {
 					if (opponent.id() != player.id()) {
@@ -141,9 +235,10 @@ public class Game {
 	public GameSnapshot snapshot() {
 		List<GameSnapshot.PlayerSnapshot> playerSnapshots = players.stream()
 				.map(player -> new GameSnapshot.PlayerSnapshot(player.id(), player.name(), player.life(),
-						player.isEliminated(), player.commanderDamageReceived(), player.background(), player.deckId()))
+						player.isEliminated(), player.commanderDamageReceived(), player.background(), player.deckId(),
+							player.survivesAtZero()))
 				.toList();
-		return new GameSnapshot(settings.format(), settings.startingLife(), playerSnapshots);
+		return new GameSnapshot(settings.format(), settings.startingLife(), playerSnapshots, activePlayerId);
 	}
 
 	private void requireValidDelta(int delta) {

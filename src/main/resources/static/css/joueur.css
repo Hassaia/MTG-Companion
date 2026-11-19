@@ -124,6 +124,174 @@
 	opacity: 0.45;
 }
 
+.opponents li.active-turn {
+	box-shadow: 0 0 0 2px var(--player-color, var(--text));
+}
+
+.turn-banner {
+	margin: 0;
+	padding: 8px 16px;
+	background: var(--surface-raised);
+	color: var(--text-muted);
+	font-size: 0.9rem;
+	text-align: center;
+}
+
+.turn-banner.mine {
+	background: var(--player-color, var(--surface-raised));
+	color: #fff;
+	font-weight: 700;
+}
+
+.extras {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: center;
+	gap: 8px;
+}
+
+/* Fenêtre d'outils : feuille collée en bas de l'écran, sous le pouce */
+.tools-menu {
+	position: fixed;
+	inset: 0;
+	z-index: 20;
+	display: flex;
+	align-items: flex-end;
+	background: rgb(0 0 0 / 0.6);
+}
+
+.tools-menu[hidden] {
+	display: none;
+}
+
+.tools-sheet {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	width: 100%;
+	max-width: 480px;
+	margin: 0 auto;
+	padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+	border-radius: var(--radius) var(--radius) 0 0;
+	background: var(--bg);
+	border: 1px solid var(--border);
+}
+
+.tools-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+}
+
+.tools-header h2 {
+	margin: 0;
+	font-size: 1.1rem;
+}
+
+.tools-grid {
+	display: grid;
+	grid-template-columns: repeat(2, 1fr);
+	gap: 8px;
+}
+
+.tools-grid .open-card-search {
+	min-height: 64px;
+}
+
+/* Bouclier : éteint (grisé) par défaut, allumé (couleur du joueur, halo) quand l'effet est actif */
+.survive-toggle,
+.tools-toggle {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	min-height: 44px;
+	padding: 0 16px;
+	border: 1px solid var(--border);
+	border-radius: 999px;
+	background: var(--surface);
+	color: var(--text-muted);
+	font: inherit;
+	font-size: 0.9rem;
+	cursor: pointer;
+	transition: color 0.2s, border-color 0.2s, box-shadow 0.2s;
+}
+
+.survive-icon {
+	width: 24px;
+	height: 24px;
+}
+
+.survive-toggle[aria-pressed="true"] {
+	border-color: var(--player-color, var(--text));
+	color: var(--player-color, var(--text));
+	box-shadow: 0 0 12px var(--player-color, var(--text));
+}
+
+.survive-toggle[aria-pressed="true"] .survive-icon {
+	fill: currentColor;
+	fill-opacity: 0.25;
+}
+
+.turn-number {
+	font-weight: 700;
+	font-variant-numeric: tabular-nums;
+}
+
+.turn-banner button {
+	margin-left: 12px;
+	min-height: 32px;
+	padding: 0 12px;
+	border: 1px solid currentColor;
+	border-radius: 999px;
+	background: transparent;
+	color: inherit;
+	font: inherit;
+	cursor: pointer;
+}
+
+.game-log-players {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin: 0 0 12px;
+	padding: 0;
+	list-style: none;
+}
+
+.game-log-list {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.game-log-turn {
+	margin-top: 12px;
+	padding-bottom: 4px;
+	border-bottom: 1px solid var(--border);
+	color: var(--text-muted);
+	font-size: 0.85rem;
+	font-weight: 700;
+}
+
+.game-log-entry {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 8px 0;
+}
+
+body.embedded .config-link {
+	display: none;
+}
+
+.config-link {
+	display: inline-flex;
+	align-items: center;
+	text-decoration: none;
+	color: inherit;
+}
+
 .opponents li.eliminated .opponent-life {
 	text-decoration: line-through;
 }

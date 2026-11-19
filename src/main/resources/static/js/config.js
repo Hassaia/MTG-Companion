@@ -1,7 +1,8 @@
 import { connectToGame } from './connection.js';
 
 // Affichée dans une iframe de /table : voir body.embedded dans common.css
-if (new URLSearchParams(location.search).get('embedded') === 'true') {
+const EMBEDDED = new URLSearchParams(location.search).get('embedded') === 'true';
+if (EMBEDDED) {
 	document.body.classList.add('embedded');
 }
 
@@ -12,6 +13,7 @@ const form = document.getElementById('game-form');
 const startingLifeInput = document.getElementById('starting-life');
 const nameInputs = [...document.querySelectorAll('#player-names input')];
 const feedback = document.getElementById('feedback');
+const firstPlayerSelect = document.getElementById('first-player');
 
 let currentGame = null;
 let formFilledFromServer = false;
@@ -31,6 +33,10 @@ const connection = connectToGame({
 		if (pendingSuccessMessage) {
 			showFeedback(pendingSuccessMessage, 'success');
 			pendingSuccessMessage = null;
+			// Dans la fenêtre de /table : on la ferme pour voir la partie (et le tirage au sort) tout de suite
+			if (EMBEDDED) {
+				parent.postMessage({ type: 'mtg-companion:close-embedded' }, location.origin);
+			}
 		}
 	},
 	onError(text) {
@@ -93,6 +99,17 @@ function updateVisibleNameInputs() {
 	nameInputs.forEach((input, index) => {
 		input.hidden = index >= count;
 	});
+	updateFirstPlayerOptions(count);
+}
+
+/** « Tirage au sort » par défaut ; la sélection est conservée si le joueur existe encore. */
+function updateFirstPlayerOptions(count) {
+	const previous = firstPlayerSelect.value;
+	const draw = new Option('Tirage au sort', '');
+	const players = nameInputs.slice(0, count).map((input, index) =>
+		new Option(input.value.trim() || `Joueur ${index + 1}`, String(index + 1)));
+	firstPlayerSelect.replaceChildren(draw, ...players);
+	firstPlayerSelect.value = players.some((option) => option.value === previous) ? previous : '';
 }
 
 /** Une partie est « en cours » dès qu'un compteur a bougé depuis le lancement. */
@@ -125,6 +142,8 @@ form.addEventListener('change', (event) => {
 	}
 });
 
+nameInputs.forEach((input) => input.addEventListener('input', () => updateFirstPlayerOptions(selectedPlayerCount())));
+
 form.addEventListener('submit', (event) => {
 	event.preventDefault();
 	if (!form.reportValidity()) {
@@ -139,6 +158,7 @@ form.addEventListener('submit', (event) => {
 		format: form.elements.format.value,
 		startingLife: Number(startingLifeInput.value),
 		players: nameInputs.slice(0, selectedPlayerCount()).map((input) => input.value.trim()),
+		firstPlayer: firstPlayerSelect.value === '' ? null : Number(firstPlayerSelect.value),
 	}, 'Partie lancée.');
 });
 

@@ -20,6 +20,9 @@ connectToGame({
 	},
 	// Après une coupure, le serveur renvoie la carte affichée s'il y en a encore une
 	onOpen: hideCard,
+	onDraw() {
+		drawPending = true;
+	},
 	onCardShown: showCard,
 	onCardHidden: hideCard,
 });
@@ -88,6 +91,100 @@ function renderGame(game) {
 		renderedLayout = layout;
 	}
 	game.players.forEach((player) => updatePanel(panels.get(player.id), player));
+	latestGame = game;
+	if (drawPending) {
+		drawPending = false;
+		startDraw();
+	} else {
+		applyActiveTurn();
+	}
+}
+
+// --- Joueur dont c'est le tour, et tirage au sort du premier joueur
+
+/** Dernier état reçu : l'animation du tirage s'arrête sur le joueur actif qu'il désigne. */
+let latestGame = null;
+/** DRAW reçu : l'animation démarre avec l'état qui suit, une fois les zones à jour. */
+let drawPending = false;
+let drawing = false;
+let drawTimer = null;
+let drawResume = null;
+
+const DRAW_MIN_STEPS = 18;
+const DRAW_FIRST_DELAY_MS = 60;
+const DRAW_SLOWDOWN = 1.3;
+const DRAW_RESULT_MS = 1600;
+
+/** Pendant le tirage, le halo est masqué : il révélerait le résultat avant la fin de l'animation. */
+function applyActiveTurn() {
+	for (const [playerId, panel] of panels) {
+		panel.root.classList.toggle('active-turn', !drawing && playerId === latestGame?.activePlayer);
+	}
+}
+
+function clearDrawStyles() {
+	tableElement.classList.remove('drawing', 'draw-done');
+	for (const panel of panels.values()) {
+		panel.root.classList.remove('draw-highlight');
+	}
+}
+
+function startDraw() {
+	clearTimeout(drawTimer);
+	if (drawResume) {
+		settingsDialog.removeEventListener('close', drawResume);
+		drawResume = null;
+	}
+	clearDrawStyles();
+	if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+		drawing = false;
+		applyActiveTurn();
+		return;
+	}
+	drawing = true;
+	applyActiveTurn();
+	// Lancé depuis la configuration de la table : l'animation attend la fermeture de la modale, sinon on la manquerait
+	if (settingsDialog.open) {
+		drawResume = () => {
+			drawResume = null;
+			runDraw();
+		};
+		settingsDialog.addEventListener('close', drawResume, { once: true });
+		return;
+	}
+	runDraw();
+}
+
+/** Les zones s'éclairent une à une en boucle, de plus en plus lentement, jusqu'au joueur désigné. */
+function runDraw() {
+	const ids = latestGame.players.map((player) => player.id);
+	const count = ids.length;
+	const winnerIndex = Math.max(0, ids.indexOf(latestGame.activePlayer));
+	const start = Math.floor(Math.random() * count);
+	const steps = count * Math.ceil(DRAW_MIN_STEPS / count) + ((winnerIndex - start + count) % count);
+	tableElement.classList.add('drawing');
+
+	let step = 0;
+	const tick = () => {
+		const litId = ids[(start + step) % count];
+		for (const [playerId, panel] of panels) {
+			panel.root.classList.toggle('draw-highlight', playerId === litId);
+		}
+		if (step === steps) {
+			tableElement.classList.add('draw-done');
+			drawTimer = setTimeout(endDraw, DRAW_RESULT_MS);
+			return;
+		}
+		drawTimer = setTimeout(tick, DRAW_FIRST_DELAY_MS + DRAW_SLOWDOWN * step * step);
+		step++;
+	};
+	tick();
+}
+
+function endDraw() {
+	drawing = false;
+	clearDrawStyles();
+	applyActiveTurn();
 }
 
 function buildPanels(game) {
@@ -167,6 +264,7 @@ function updateArt(panel, background) {
 function updatePanel(panel, player) {
 	updateArt(panel, player.background);
 	panel.root.classList.toggle('eliminated', player.eliminated);
+	panel.root.classList.toggle('survives', player.survivesAtZero);
 	panel.life.textContent = String(player.life);
 	panel.lifeChange.update(player.life);
 	for (const [opponentId, { item, amount }] of panel.damageAmounts) {

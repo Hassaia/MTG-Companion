@@ -18,6 +18,10 @@ import com.wahib.mtg.mtg_companion.userimages.Framing;
 		@JsonSubTypes.Type(value = ClientMessage.ChangeCommanderDamage.class, name = "CHANGE_COMMANDER_DAMAGE"),
 		@JsonSubTypes.Type(value = ClientMessage.StartGame.class, name = "START_GAME"),
 		@JsonSubTypes.Type(value = ClientMessage.Reset.class, name = "RESET"),
+		@JsonSubTypes.Type(value = ClientMessage.UndoTo.class, name = "UNDO_TO"),
+		@JsonSubTypes.Type(value = ClientMessage.SetSurvivesAtZero.class, name = "SET_SURVIVES_AT_ZERO"),
+		@JsonSubTypes.Type(value = ClientMessage.NextTurn.class, name = "NEXT_TURN"),
+		@JsonSubTypes.Type(value = ClientMessage.SetActivePlayer.class, name = "SET_ACTIVE_PLAYER"),
 		@JsonSubTypes.Type(value = ClientMessage.SetPlayerBackground.class, name = "SET_PLAYER_BACKGROUND"),
 		@JsonSubTypes.Type(value = ClientMessage.ClearPlayerBackground.class, name = "CLEAR_PLAYER_BACKGROUND"),
 		@JsonSubTypes.Type(value = ClientMessage.SetPlayerDeck.class, name = "SET_PLAYER_DECK"),
@@ -32,11 +36,35 @@ public sealed interface ClientMessage {
 	record ChangeCommanderDamage(int player, int fromPlayer, int delta) implements ClientMessage {
 	}
 
-	/** Le nombre de joueurs est la taille de {@code players} ; un nom vide devient « Joueur N ». */
-	record StartGame(Format format, int startingLife, List<String> players) implements ClientMessage {
+	/**
+	 * Le nombre de joueurs est la taille de {@code players} ; un nom vide devient « Joueur N ».
+	 * {@code firstPlayer} : joueur qui commence, ou null pour le tirer au sort.
+	 */
+	record StartGame(Format format, int startingLife, List<String> players, Integer firstPlayer)
+			implements ClientMessage {
+
+		public StartGame(Format format, int startingLife, List<String> players) {
+			this(format, startingLife, players, null);
+		}
+	}
+
+	/** Active ou désactive l'effet « ne peut pas perdre » (Platinum Angel…) d'un joueur. */
+	record SetSurvivesAtZero(int player, boolean enabled) implements ClientMessage {
+	}
+
+	/** Annule l'action {@code entryId} du journal et toutes les suivantes. */
+	record UndoTo(int entryId) implements ClientMessage {
 	}
 
 	record Reset() implements ClientMessage {
+	}
+
+	/** Passe le tour au joueur suivant. */
+	record NextTurn() implements ClientMessage {
+	}
+
+	/** Donne la main à {@code player} (correction du tour). */
+	record SetActivePlayer(int player) implements ClientMessage {
 	}
 
 	/**

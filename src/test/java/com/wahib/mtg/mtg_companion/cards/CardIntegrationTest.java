@@ -552,7 +552,11 @@ class CardIntegrationTest {
 
 		@Override
 		protected void handleTextMessage(WebSocketSession session, TextMessage message) {
-			messages.add(message.getPayload());
+			// LOG et DRAW accompagnent chaque action ; ces tests ne portent que sur STATE, ERROR et les cartes
+			String payload = message.getPayload();
+			if (!payload.startsWith("{\"type\":\"LOG\"") && !payload.startsWith("{\"type\":\"DRAW\"")) {
+				messages.add(payload);
+			}
 		}
 
 		JsonNode next() throws InterruptedException {

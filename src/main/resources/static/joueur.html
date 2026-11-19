@@ -18,6 +18,7 @@
 	<header id="topbar" class="topbar player-topbar">
 		<h1 id="title">Choisir son joueur</h1>
 		<button type="button" id="change-player" class="change-player" hidden>Changer</button>
+		<a id="config-link" class="change-player config-link" href="/config">Config</a>
 		<span id="connection-status" class="connection-status">Connexion…</span>
 	</header>
 
@@ -32,6 +33,11 @@
 	</main>
 
 	<main id="play-screen" class="play-screen" hidden>
+		<p id="turn-banner" class="turn-banner" role="status">
+			<span id="turn-number" class="turn-number"></span>
+			<span id="turn-text"></span>
+			<button type="button" id="end-turn">Fin de tour</button>
+		</p>
 		<ul id="opponents" class="opponents" aria-label="Adversaires"></ul>
 
 		<section id="own-life" class="own-life" aria-live="polite">
@@ -42,27 +48,24 @@
 			<p class="eliminated-label">Éliminé</p>
 		</section>
 
+		<div class="extras">
+		<!-- Icône Lucide (ISC, lucide.dev) : shield -->
+		<button type="button" id="survive-toggle" class="survive-toggle" aria-pressed="false"
+			aria-label="Ne peut pas perdre (Platinum Angel…)" title="Ne peut pas perdre (Platinum Angel…)">
+			<svg class="survive-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></svg>
+			<span class="survive-text">Ne peut pas perdre</span>
+		</button>
+		<!-- Icône Lucide (ISC, lucide.dev) : layout-grid -->
+		<button type="button" id="open-tools" class="tools-toggle" aria-haspopup="dialog" aria-label="Outils : carte, illustration, rulings, journal, deck">
+			<svg class="survive-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>
+			<span>Outils</span>
+		</button>
+		</div>
+
 		<section id="commander-section" class="commander-section" hidden>
 			<h2>PV de commandant restants (sur 21)</h2>
 			<ul id="commander-rows" class="commander-rows"></ul>
 		</section>
-
-		<section id="my-deck" class="my-deck" aria-label="Mon deck">
-			<span class="my-deck-label">Mon deck</span>
-			<span id="my-deck-name" class="my-deck-name">Aucun deck choisi</span>
-			<button type="button" id="my-deck-change" class="my-deck-button">Choisir</button>
-			<button type="button" id="my-deck-clear" class="my-deck-button my-deck-clear" aria-label="Retirer mon deck" hidden>✕</button>
-		</section>
-
-		<!-- Icônes Lucide (ISC, lucide.dev) : scan-eye, image, book-open-text -->
-		<div class="quick-actions">
-			<button type="button" id="open-card-search" class="open-card-search" aria-label="Montrer une carte sur la table">
-				<svg class="quick-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><circle cx="12" cy="12" r="1"/><path d="M18.944 12.33a1 1 0 0 0 0-.66 7.5 7.5 0 0 0-13.888 0 1 1 0 0 0 0 .66 7.5 7.5 0 0 0 13.888 0"/></svg>Carte</button>
-			<button type="button" id="open-zone-background" class="open-card-search" aria-label="Illustration de ma zone">
-				<svg class="quick-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>Ma zone</button>
-			<button type="button" id="open-rulings" class="open-card-search" aria-label="Consulter les rulings d'une carte">
-				<svg class="quick-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v14"/><path d="M16 12h2"/><path d="M16 8h2"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/><path d="M6 12h2"/><path d="M6 8h2"/></svg>Rulings</button>
-		</div>
 
 		<div id="life-buttons" class="life-buttons">
 			<button type="button" class="life-button minus" data-delta="-5" aria-label="Retirer 5 PV">−5</button>
@@ -71,6 +74,35 @@
 			<button type="button" class="life-button plus" data-delta="1" aria-label="Ajouter 1 PV">+1</button>
 		</div>
 	</main>
+
+	<!-- Fenêtre d'outils : les boutons gardent leurs identifiants, chaque module les retrouve par là -->
+	<section id="tools-menu" class="tools-menu" role="dialog" aria-modal="true" aria-labelledby="tools-title" hidden>
+		<div class="tools-sheet">
+			<header class="tools-header">
+				<h2 id="tools-title">Outils</h2>
+				<button type="button" id="close-tools" class="change-player">Fermer</button>
+			</header>
+			<!-- Icônes Lucide (ISC, lucide.dev) : scan-eye, image, book-open-text, history -->
+			<div class="tools-grid">
+				<button type="button" id="open-card-search" class="open-card-search" aria-label="Montrer une carte sur la table">
+					<svg class="quick-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><circle cx="12" cy="12" r="1"/><path d="M18.944 12.33a1 1 0 0 0 0-.66 7.5 7.5 0 0 0-13.888 0 1 1 0 0 0 0 .66 7.5 7.5 0 0 0 13.888 0"/></svg>Carte</button>
+				<button type="button" id="open-zone-background" class="open-card-search" aria-label="Illustration de ma zone">
+					<svg class="quick-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>Ma zone</button>
+				<button type="button" id="open-rulings" class="open-card-search" aria-label="Consulter les rulings d'une carte">
+					<svg class="quick-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v14"/><path d="M16 12h2"/><path d="M16 8h2"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/><path d="M6 12h2"/><path d="M6 8h2"/></svg>Rulings</button>
+				<!-- Icône Lucide (ISC, lucide.dev) : history -->
+				<button type="button" id="open-game-log" class="open-card-search" aria-label="Journal de la partie">
+					<svg class="quick-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>Journal</button>
+			</div>
+
+			<section id="my-deck" class="my-deck" aria-label="Mon deck">
+				<span class="my-deck-label">Mon deck</span>
+				<span id="my-deck-name" class="my-deck-name">Aucun deck choisi</span>
+				<button type="button" id="my-deck-change" class="my-deck-button">Choisir</button>
+				<button type="button" id="my-deck-clear" class="my-deck-button my-deck-clear" aria-label="Retirer mon deck" hidden>✕</button>
+			</section>
+		</div>
+	</section>
 
 	<section id="card-search" class="card-search" role="dialog" aria-modal="true" aria-labelledby="card-search-title" hidden>
 		<header class="card-search-header">
@@ -239,7 +271,19 @@
 		</section>
 	</section>
 
-	<section id="rulings-view" class="card-search rulings-view" role="dialog" aria-modal="true" aria-labelledby="rulings-title" hidden>
+	<section id="game-log" class="card-search game-log" role="dialog" aria-modal="true" aria-labelledby="game-log-title" hidden>
+		<header class="card-search-header">
+			<h2 id="game-log-title">Journal</h2>
+			<button type="button" id="close-game-log" class="change-player">Retour</button>
+		</header>
+		<h3 class="card-history-title">Donner la main à</h3>
+		<ul id="game-log-players" class="game-log-players"></ul>
+		<h3 class="card-history-title">Actions (récentes en premier)</h3>
+		<p id="game-log-empty" class="card-search-status">Aucune action pour l'instant.</p>
+		<ul id="game-log-list" class="game-log-list"></ul>
+	</section>
+
+	<section id="rulings-view"class="card-search rulings-view" role="dialog" aria-modal="true" aria-labelledby="rulings-title" hidden>
 		<header class="card-search-header">
 			<h2 id="rulings-title">Rulings</h2>
 			<button type="button" id="close-rulings" class="change-player">Retour</button>
